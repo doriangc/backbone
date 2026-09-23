@@ -22,6 +22,17 @@ D
 
 Assuming that these were equidistant from these homes, we would expect half of the trips to go to each of the stores.
 
+This becomes more complicated if the distance between O and each of the Ds is different. That's where we have to introduce logsums:
+
+$P_{ij} = \frac{\exp(V_{ij})}{\sum_{k}\exp(V_{ik})}$
+
+Where $V_{ij}$ (the utility from i to j) are weighted costs $U_{ij} - \beta_0*d_{ij}+\beta_1*c_{ij}+...$, where $d$ might stand for distance, $c$ for comfort, etc. These weights will need to be tuned, because we don't actually know how much people actually care about distance and comfort, and how it might influence their decision to pick another store.
+
+So we might expect
+
+$\verb|population|(O)*\frac{\exp(-d_{od1})}{\exp(-d_{od1})+\exp(-d_{od2})}$
+
+across *. 
 
 # Trips
 Traffic along a certain corridor equals the number of trips which make use of that corridor. There are a very large number of reasons people might make a trip. It's interesting to think about how one might categorize them. The status quo includes something like the list below (taken from [NHTS](https://nhts.ornl.gov/) data):
