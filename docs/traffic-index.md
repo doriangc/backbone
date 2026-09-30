@@ -30,9 +30,38 @@ Where $V_{ij}$ (the utility from i to j) are weighted costs $U_{ij} - \beta_0*d_
 
 So we might expect
 
-$\verb|population|(O)*\frac{\exp(-d_{od1})}{\exp(-d_{od1})+\exp(-d_{od2})}$
+$\verb|population|(O)\times\frac{\exp(-d_{od1})}{\exp(-d_{od1})+\exp(-d_{od2})}$
 
 across *. 
+
+What happens when add more origins? We can try adding one both behind and in front of the counter.
+
+```
+O   O
+|   |
+O-*-D
+|
+D
+```
+
+We can simply calculate all paths between every origin and destination. To simplify, I'll use numbers for origins, and letters for destinations.
+
+```
+1   2
+|   |
+3-*-a
+|
+b
+```
+
+So now, we can populate this table. I've marked cells going through * with *. We calculate the logsum for every cell, using the entire column for the logsum denominator every time. Then we can just sum those final values where the original path was marked *. 
+
+|  | 1 | 2 | 3 |
+| -------- | -------- | -------- | -------- |
+| a | $d_{1a}$*  | $d_{2a}$  | $d_{3a}$*  |
+| b | $d_{1b}$  | $d_{2b}$*  | $d_{3b}$  |
+
+So far, we've assumed there was only a single path between origins and destinations. Unfortunately, this is almost never the case. Additionally, we almost always want to consider multiple paths, because these may have very desirable characteristics (other than distance) when compared to the shortest path.
 
 # Trips
 Traffic along a certain corridor equals the number of trips which make use of that corridor. There are a very large number of reasons people might make a trip. It's interesting to think about how one might categorize them. The status quo includes something like the list below (taken from [NHTS](https://nhts.ornl.gov/) data):
