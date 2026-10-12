@@ -1,0 +1,356 @@
+"""Fetch BGT wegdeel, PDOK Luchtfoto and OSM drivable roads for one area.
+
+    python -m backbone.fetch --area utrecht_centrum
+    python -m backbone.fetch --bbox 135900,454900,137900,456900
+
+Everything is cached under data/<area>/; reruns skip outputs that already exist
+(use --force to refetch). data/<area>/manifest.json records URLs, layers, data
+timestamps, licenses, counts and file hashes.
+"""
+
+import argparse
+import datetime as dt
+import gzip
+import hashlib
+import json
+import logging
+import re
+import shutil
+from pathlib import Path
+
+import geopandas as gpd
+import numpy as np
+import rasterio
+import requests
+from PIL import Image
+from rasterio.windows import Window
+from requests.adapters import HTTPAdapter
+from shapely.geometry import LineString, box
+from urllib3.util.retry import Retry
+
+from backbone import config
+from backbone.areas import AREAS, BBox, bbox_name, parse_bbox
+from backbone.grid import Grid
+
+log = logging.getLogger("backbone.fetch")
+
+DATA_DIR = Path("data")
+
+
+def session() -> requests.Session:
+    s = requests.Session()
+    # POST is retried too: Overpass queries are read-only and often return 504 when busy.
+    retry = Retry(
+        total=6,
+        backoff_factor=5,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET", "POST"],
+    )
+    s.mount("https://", HTTPAdapter(max_retries=retry))
+    s.headers["User-Agent"] = config.USER_AGENT
+    return s
+
+
+def write_json_gz(obj, path: Path) -> None:
+    """Atomic, byte-reproducible gzip JSON (no mtime or file name in the header)."""
+    tmp = path.with_suffix(".tmp")
+    with open(tmp, "wb") as raw, gzip.GzipFile(filename="", fileobj=raw, mode="wb", mtime=0) as gz:
+        gz.write(json.dumps(obj).encode())
+    tmp.rename(path)
+
+
+def sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+# --- BGT -------------------------------------------------------------------
+
+
+def bgt_current(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """Keep only the current version of each BGT object.
+
+    The PDOK OGC API returns every historic version of an object (verified
+    2026-10-12: 26k features, 13k duplicate lokaal_id, area 4x the union for
+    central Utrecht). A version is current when its registration has not ended
+    (`eind_registratie` null) and the object itself still exists
+    (`termination_date` null).
+    """
+    cur = gdf[gdf["eind_registratie"].isna() & gdf["termination_date"].isna()].copy()
+    dups = cur["lokaal_id"].duplicated().sum()
+    if dups:
+        raise ValueError(f"{dups} lokaal_id values have more than one current version")
+    return cur
+
+
+def fetch_bgt(bbox: BBox, out_dir: Path, s: requests.Session) -> dict:
+    raw_path = out_dir / "bgt_wegdeel_raw.geojson.gz"
+    out_path = out_dir / "bgt_wegdeel.gpkg"
+    if not raw_path.exists():
+        params = {
+            "f": "json",
+            "limit": config.BGT_PAGE_LIMIT,
+            "bbox": ",".join(str(v) for v in bbox.as_tuple()),
+            "bbox-crs": config.RD_CRS_URI,
+            "crs": config.RD_CRS_URI,
+        }
+        url, features, pages = config.BGT_ITEMS_URL, [], 0
+        while url:
+            r = s.get(url, params=params, timeout=180)
+            r.raise_for_status()
+            if config.RD_CRS_URI not in r.headers.get("Content-Crs", ""):
+                raise ValueError(f"unexpected Content-Crs {r.headers.get('Content-Crs')}")
+            page = r.json()
+            features += page["features"]
+            pages += 1
+            params = None  # the next link carries all parameters
+            url = next((l["href"] for l in page["links"] if l["rel"] == "next"), None)
+            log.info("BGT page %d: %d features so far", pages, len(features))
+        write_json_gz({"type": "FeatureCollection", "features": features}, raw_path)
+
+    with gzip.open(raw_path, "rt") as f:
+        features = json.load(f)["features"]
+    all_versions = gpd.GeoDataFrame.from_features(features, crs=config.RD_EPSG)
+    cur = bgt_current(all_versions)
+    cur["drivable"] = cur["functie"].isin(config.BGT_DRIVABLE_FUNCTIES)
+    if not out_path.exists():
+        cur.to_file(out_path, layer="wegdeel", driver="GPKG")
+
+    unknown = set(cur["functie"]) - config.BGT_DRIVABLE_FUNCTIES - {
+        "spoorbaan", "baan voor vliegverkeer", "fietspad", "voetpad",
+        "voetpad op trap", "ruiterpad", "parkeervlak", "voetgangersgebied",
+    }  # fmt: skip
+    if unknown:
+        log.warning("BGT functie values outside the codelist: %s", sorted(unknown))
+    return {
+        "endpoint": config.BGT_ITEMS_URL,
+        "license": config.BGT_LICENSE,
+        "fetched_versions": len(all_versions),
+        "current_features": len(cur),
+        "drivable_features": int(cur["drivable"].sum()),
+        "functie_counts": cur["functie"].value_counts().to_dict(),
+        "max_lv_publicatiedatum": cur["lv_publicatiedatum"].max(),
+        "raw_file": raw_path.name,
+        "raw_sha256": sha256(raw_path),  # GPKGs embed write times, so only raw is hashed
+    }
+
+
+# --- Luchtfoto ---------------------------------------------------------------
+
+
+def fetch_luchtfoto(bbox: BBox, out_dir: Path, s: requests.Session, key: str) -> dict:
+    layer, res = config.LUCHTFOTO_LAYERS[key]
+    grid = Grid.for_bbox(bbox, res)
+    out_path = out_dir / f"luchtfoto_{key}.tif"
+    tile_dir = out_dir / "tiles" / layer
+    tile_dir.mkdir(parents=True, exist_ok=True)
+    tiles = grid.tiles(config.WMS_TILE_PX)
+    assert config.WMS_TILE_PX <= config.WMS_MAX_PX
+
+    for i, t in enumerate(tiles):
+        p = tile_dir / f"r{t.row:03d}_c{t.col:03d}.jpg"
+        if p.exists():
+            continue
+        params = {
+            "service": "WMS",
+            "version": "1.3.0",
+            "request": "GetMap",
+            "layers": layer,
+            "styles": "",
+            # EPSG:28992 axis order is easting, northing, also in WMS 1.3.0.
+            "crs": f"EPSG:{config.RD_EPSG}",
+            "bbox": ",".join(repr(v) for v in t.bbox.as_tuple()),
+            "width": t.width,
+            "height": t.height,
+            "format": "image/jpeg",
+        }
+        r = s.get(config.LUCHTFOTO_WMS_URL, params=params, timeout=300)
+        r.raise_for_status()
+        if not r.headers.get("Content-Type", "").startswith("image/jpeg"):
+            raise ValueError(f"WMS returned {r.headers.get('Content-Type')}: {r.text[:500]}")
+        p.with_suffix(".tmp").write_bytes(r.content)
+        p.with_suffix(".tmp").rename(p)
+        log.info("%s tile %d/%d", layer, i + 1, len(tiles))
+
+    if not out_path.exists():
+        mosaic_tiles(grid, tiles, tile_dir, out_path)
+
+    with rasterio.open(out_path) as ds:
+        sample = ds.read(out_shape=(3, 256, 256))
+    blank = float(np.mean((sample.min(axis=0) > 250) | (sample.max(axis=0) < 5)))
+    if blank > 0.05:
+        log.warning("%s: %.0f%% of the image looks blank (no coverage?)", layer, 100 * blank)
+    return {
+        "endpoint": config.LUCHTFOTO_WMS_URL,
+        "layer": layer,
+        "resolution_m": res,
+        "license": config.LUCHTFOTO_LICENSE,
+        "grid_bbox": grid.bbox.as_tuple(),
+        "size_px": [grid.width, grid.height],
+        "tiles": len(tiles),
+        "blank_fraction": round(blank, 4),
+        "file": out_path.name,
+        "file_mb": round(out_path.stat().st_size / 1e6, 1),
+        "sha256": sha256(out_path),
+    }
+
+
+def mosaic_tiles(grid: Grid, tiles, tile_dir: Path, out_path: Path) -> None:
+    profile = {
+        "driver": "GTiff",
+        "dtype": "uint8",
+        "count": 3,
+        "width": grid.width,
+        "height": grid.height,
+        "crs": f"EPSG:{config.RD_EPSG}",
+        "transform": grid.transform,
+        "tiled": True,
+        "blockxsize": 512,
+        "blockysize": 512,
+        "compress": "JPEG",
+        "photometric": "YCBCR",
+        "jpeg_quality": 90,
+        "BIGTIFF": "IF_SAFER",
+    }
+    tmp = out_path.with_suffix(".tmp.tif")
+    with rasterio.open(tmp, "w", **profile) as dst:
+        for t in tiles:
+            img = Image.open(tile_dir / f"r{t.row:03d}_c{t.col:03d}.jpg").convert("RGB")
+            if img.size != (t.width, t.height):
+                raise ValueError(f"tile {t.row},{t.col} is {img.size}, expected {(t.width, t.height)}")
+            arr = np.asarray(img).transpose(2, 0, 1)
+            dst.write(arr, window=Window(t.col_off, t.row_off, t.width, t.height))
+        dst.build_overviews([2, 4, 8, 16, 32], rasterio.enums.Resampling.average)
+    tmp.rename(out_path)
+
+
+# --- OSM ---------------------------------------------------------------------
+
+
+def highway_regex() -> str:
+    names = sorted(config.OSM_DRIVABLE_HIGHWAYS)
+    links = sorted(f"{h}_link" for h in config.OSM_LINK_HIGHWAYS)
+    return "^(" + "|".join(names + links) + ")$"
+
+
+def is_drivable_highway(value: str | None) -> bool:
+    return value is not None and re.fullmatch(highway_regex(), value) is not None
+
+
+def overpass_query(bbox: BBox) -> str:
+    w, s_, e, n = bbox.to_wgs84()
+    return (
+        "[out:json][timeout:300];"
+        f'way["highway"~"{highway_regex()}"]({s_:.7f},{w:.7f},{n:.7f},{e:.7f});'
+        "out body;>;out skel qt;"
+    )
+
+
+KEEP_TAGS = [
+    "highway", "name", "ref", "lanes", "width", "oneway", "service", "surface",
+    "bridge", "tunnel", "layer", "access", "motor_vehicle", "area", "junction",
+]  # fmt: skip
+
+
+def osm_to_gdf(osm: dict, bbox: BBox) -> gpd.GeoDataFrame:
+    """Ways as LineStrings in RD New. Node ids are kept (JSON list) so ways can
+    be split at shared nodes in Phase 2. Ways are kept whole, not clipped."""
+    nodes = {e["id"]: (e["lon"], e["lat"]) for e in osm["elements"] if e["type"] == "node"}
+    rows = []
+    for e in osm["elements"]:
+        if e["type"] != "way":
+            continue
+        tags = e.get("tags", {})
+        if not is_drivable_highway(tags.get("highway")) or tags.get("area") == "yes":
+            continue
+        missing = [n for n in e["nodes"] if n not in nodes]
+        if missing:
+            raise ValueError(f"way {e['id']} references {len(missing)} missing nodes")
+        row = {"osm_id": e["id"], **{k: tags.get(k) for k in KEEP_TAGS}}
+        row["nodes"] = json.dumps(e["nodes"])
+        row["tags"] = json.dumps(tags, ensure_ascii=False)
+        row["geometry"] = LineString([nodes[n] for n in e["nodes"]])
+        rows.append(row)
+    gdf = gpd.GeoDataFrame(rows, geometry="geometry", crs=config.WGS84_EPSG).to_crs(config.RD_EPSG)
+    # The lon/lat query envelope is larger than the RD box; drop ways outside it.
+    return gdf[gdf.intersects(box(*bbox.as_tuple()))].reset_index(drop=True)
+
+
+def fetch_osm(bbox: BBox, out_dir: Path, s: requests.Session) -> dict:
+    raw_path = out_dir / "osm_raw.json.gz"
+    out_path = out_dir / "osm_drivable.gpkg"
+    query = overpass_query(bbox)
+    if not raw_path.exists():
+        r = s.post(config.OVERPASS_URL, data={"data": query}, timeout=360)
+        r.raise_for_status()
+        osm = r.json()
+        if "remark" in osm:
+            raise ValueError(f"Overpass remark: {osm['remark']}")
+        write_json_gz(osm, raw_path)
+    with gzip.open(raw_path, "rt") as f:
+        osm = json.load(f)
+    gdf = osm_to_gdf(osm, bbox)
+    if not out_path.exists():
+        gdf.to_file(out_path, layer="ways", driver="GPKG")
+    return {
+        "endpoint": config.OVERPASS_URL,
+        "query": query,
+        "license": config.OSM_LICENSE,
+        "osm_base_timestamp": osm["osm3s"]["timestamp_osm_base"],
+        "ways": len(gdf),
+        "highway_counts": gdf["highway"].value_counts().to_dict(),
+        "raw_file": raw_path.name,
+        "raw_sha256": sha256(raw_path),  # GPKGs embed write times, so only raw is hashed
+    }
+
+
+# --- main ----------------------------------------------------------------------
+
+
+def run(name: str, bbox: BBox, force: bool = False) -> Path:
+    out_dir = DATA_DIR / name
+    out_dir.mkdir(parents=True, exist_ok=True)
+    if force:
+        for p in out_dir.glob("*"):
+            if p.is_file():
+                p.unlink()
+        shutil.rmtree(out_dir / "tiles", ignore_errors=True)
+    s = session()
+    manifest = {
+        "area": name,
+        "bbox_epsg28992": bbox.as_tuple(),
+        "bbox_wgs84": bbox.to_wgs84(),
+        "run_at": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
+    }
+    log.info("BGT ...")
+    manifest["bgt"] = fetch_bgt(bbox, out_dir, s)
+    log.info("OSM ...")
+    manifest["osm"] = fetch_osm(bbox, out_dir, s)
+    manifest["luchtfoto"] = {}
+    for key in config.LUCHTFOTO_LAYERS:
+        log.info("Luchtfoto %s ...", key)
+        manifest["luchtfoto"][key] = fetch_luchtfoto(bbox, out_dir, s, key)
+    (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2, default=str))
+    log.info("done: %s", out_dir / "manifest.json")
+    return out_dir
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    g = ap.add_mutually_exclusive_group(required=True)
+    g.add_argument("--area", choices=sorted(AREAS))
+    g.add_argument("--bbox", type=parse_bbox, help="xmin,ymin,xmax,ymax in EPSG:28992")
+    ap.add_argument("--force", action="store_true", help="refetch even if cached")
+    args = ap.parse_args(argv)
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
+    if args.area:
+        run(args.area, AREAS[args.area].bbox, args.force)
+    else:
+        run(bbox_name(args.bbox), args.bbox, args.force)
+
+
+if __name__ == "__main__":
+    main()
