@@ -60,6 +60,10 @@ def nearest_centreline_cells(lines: gpd.GeoSeries, extent, spacing: float) -> gp
     pts, labels = [], []
     for idx, line in lines.items():
         coords = shapely.get_coordinates(shapely.segmentize(line, spacing))
+        # The midpoint guarantees a point of its own to short lines whose
+        # endpoints are junction nodes shared with (and claimed by) other lines.
+        mid = shapely.get_coordinates(line.interpolate(0.5, normalized=True))
+        coords = np.vstack([mid, coords])
         pts.append(coords)
         labels.append(np.full(len(coords), idx, dtype=object))
     pts = np.vstack(pts)
@@ -95,33 +99,50 @@ def score(line, width: float, cell, surface: gpd.GeoDataFrame) -> dict:
     }
 
 
-def run_area(name: str) -> gpd.GeoDataFrame:
-    area = AREAS[name]
-    area_dir = DATA_DIR / name
-    ways = gpd.read_file(area_dir / "osm_drivable.gpkg", layer="ways")
+def load_segments(name: str) -> gpd.GeoDataFrame:
+    """Segments of an area's kept OSM ways, with tag widths."""
+    ways = gpd.read_file(DATA_DIR / name / "osm_drivable.gpkg", layer="ways")
     segs = split_ways(ways)
-    tags = segs["tags"].map(json.loads)
-    tw = tags.map(tag_width)
+    tw = segs["tags"].map(json.loads).map(tag_width)
     segs["tag_width"] = tw.map(lambda t: t[0])
     segs["width_source"] = tw.map(lambda t: t[1])
     log.info("%s: %d ways -> %d segments", name, len(ways), len(segs))
+    return segs
 
-    bb = area.bbox
-    eval_box = box(*bb.as_tuple()).buffer(-config.EVAL_MARGIN_M, join_style="mitre")
+
+def segment_cells(name: str, segs: gpd.GeoDataFrame) -> gpd.GeoSeries:
+    """Nearest-centreline cell of each segment (indexed like segs).
+
+    Excluded ways (parking aisles, hidden roads, private yards) are not scored,
+    but they still claim the surface nearest to them, so e.g. parking-lot
+    aisles are not counted against the street next to the lot.
+    """
+    bb = AREAS[name].bbox
     extent = box(*bb.as_tuple()).buffer(500, join_style="mitre")
-    # Excluded ways (parking aisles, hidden roads, private yards) are not scored,
-    # but they still claim the surface nearest to them, so e.g. parking-lot
-    # aisles are not counted against the street next to the lot.
-    excluded = gpd.read_file(area_dir / "osm_drivable.gpkg", layer="excluded")
+    excluded = gpd.read_file(DATA_DIR / name / "osm_drivable.gpkg", layer="excluded")
     claimers = pd.concat(
         [segs.geometry, gpd.GeoSeries(excluded.geometry.values, index=[f"excluded:{i}" for i in range(len(excluded))])]
     )
     cells = nearest_centreline_cells(gpd.GeoSeries(claimers, crs=segs.crs), extent, config.VORONOI_SPACING_M)
+    return cells.loc[segs.index]
+
+
+def eval_box(name: str):
+    """Area box shrunk by EVAL_MARGIN_M; BGT is cut off at the area box."""
+    return box(*AREAS[name].bbox.as_tuple()).buffer(-config.EVAL_MARGIN_M, join_style="mitre")
+
+
+def run_area(name: str) -> gpd.GeoDataFrame:
+    area = AREAS[name]
+    area_dir = DATA_DIR / name
+    segs = load_segments(name)
+    cells = segment_cells(name, segs)
     surface = drivable_surface(area_dir)
+    eval_box_ = eval_box(name)
 
     rows, shapes = [], []
     for i, seg in segs.iterrows():
-        part = seg.geometry.intersection(eval_box)
+        part = seg.geometry.intersection(eval_box_)
         if part.is_empty or part.length < 1.0:
             continue
         parts = list(part.geoms) if part.geom_type == "MultiLineString" else [part]

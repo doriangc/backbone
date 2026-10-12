@@ -125,3 +125,14 @@ def test_cells_split_parallel_roads_at_midline():
     surface = gpd.GeoDataFrame(geometry=[box(-100, -3, 200, 13)], crs=28992)
     r = score(LineString([(20, 0), (80, 0)]), 6.0, cells["a"], surface)
     assert r["ref_width"] == pytest.approx(8.0, abs=0.1)
+
+
+def test_short_segment_between_junctions_gets_a_cell():
+    from backbone.baseline import nearest_centreline_cells
+
+    lines = gpd.GeoSeries(
+        {"a": LineString([(0, 0), (50, 0)]), "b": LineString([(50, 0), (51, 0)]), "c": LineString([(51, 0), (100, 0)])},
+        crs=28992,
+    )
+    cells = nearest_centreline_cells(lines, box(-10, -10, 110, 10), 1.0)
+    assert cells.notna().all() and cells["b"].area > 0

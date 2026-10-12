@@ -111,3 +111,15 @@ EVAL_MARGIN_M = 25.0  # only score inside the area box shrunk by this
 CORRIDOR_HALF_WIDTH_M = 20.0  # reference surface is searched this far from the line
 VORONOI_SPACING_M = 1.0  # centreline sampling for the nearest-centreline partition
 GALLERY_MIN_LENGTH_M = 10.0
+
+# --- Phase 3 ground-truth widths (starting values, approved 2026-10-12;
+# to be confirmed on the Phase 3 overlays) ------------------------------------
+PROFILE_SPACING_M = 2.0
+PROFILE_HALF_LENGTH_M = 25.0
+OFFSET_SEARCH_M = 5.0  # how far to look for the road when the OSM line is off it
+GAP_TOL_M = 0.05  # polygon slivers along a profile shorter than this are ignored
+JUNCTION_MARGIN_M = 3.0  # exclusion = widest other road's half tag width + this
+MINOR_JUNCTION_M = 2.0  # exclusion where only minor service ways join
+MINOR_SERVICE = frozenset({"driveway", "alley", "drive-through", "emergency_access"})
+SPREAD_FLAG_M = 1.5  # p90 - p10 of total carriageway width
+MIN_USABLE_PROFILES = 3
