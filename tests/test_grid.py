@@ -101,6 +101,23 @@ def test_edge_offset_recovers_known_shift(tmp_path, true_dx, true_dy):
         ds.write(img.transpose(2, 0, 1))
     poly = box(15 - true_dx, 15 - true_dy, 35 - true_dx, 35 - true_dy)
     bgt = gpd.GeoDataFrame({"relatieve_hoogteligging": [0]}, geometry=[poly], crs=28992)
-    r, _ = edge_offset(tif, BBox(0, 0, 50, 50), bgt, res, max_shift_m=2.0)
+    r, _ = edge_offset(tif, BBox(0, 0, 50, 50), bgt, res, max_shift_m=2.0, min_edge_pixels=0)
     assert r["dx_m"] == pytest.approx(true_dx, abs=res)
     assert r["dy_m"] == pytest.approx(true_dy, abs=res)
+
+
+def test_edge_offset_skips_windows_without_edges(tmp_path):
+    import geopandas as gpd
+
+    from backbone.qa import edge_offset
+
+    g = Grid.for_bbox(BBox(0, 0, 50, 50), 0.25)
+    tif = tmp_path / "img.tif"
+    with rasterio.open(
+        tif, "w", driver="GTiff", dtype="uint8", count=3, width=g.width, height=g.height,
+        crs="EPSG:28992", transform=g.transform,
+    ) as ds:  # fmt: skip
+        ds.write(np.full((3, g.height, g.width), 100, dtype=np.uint8))
+    bgt = gpd.GeoDataFrame({"relatieve_hoogteligging": [0]}, geometry=[box(500, 500, 510, 510)], crs=28992)
+    r, scores = edge_offset(tif, BBox(0, 0, 50, 50), bgt, 0.25)
+    assert r["dx_m"] is None and scores is None and r["edge_pixels"] == 0

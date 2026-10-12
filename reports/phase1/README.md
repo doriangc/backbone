@@ -1,14 +1,38 @@
-# Phase 1: Data acquisition, pilot `utrecht_centrum`
+# Phase 1: Data acquisition, three pilot areas
 
-Area: EPSG:28992 box `135900,454900,137900,456900` (2 x 2 km, central Utrecht).
-Run on 2026-10-12.
+Run on 2026-10-12. Boxes in EPSG:28992, 2 x 2 km each (`src/backbone/areas.py`):
+
+| Area | Type | Box | Character |
+|---|---|---|---|
+| `utrecht_centrum` | city | `135900,454900,137900,456900` | old town, singels, station area, ring roads |
+| `houten` | suburb | `139000,448100,141000,450100` | residential loops and cul-de-sacs, ring road with roundabouts, business park |
+| `benschop` | rural | `126400,445400,128400,447400` | ribbon village on a dike road, polder roads, provincial road with parallel road |
+
+Place names were checked against BGT `wijk` (Houten Noord-West) and BAG
+`woonplaats` (Benschop).
 
 ```
 uv sync
-uv run python -m backbone.fetch --area utrecht_centrum   # ~4 min, ~280 MB in data/
-uv run python -m backbone.qa --area utrecht_centrum      # ~1 min, writes this folder
+uv run python -m backbone.fetch --area <area>   # ~4-5 min, ~300 MB in data/<area>/
+uv run python -m backbone.qa --area <area>      # ~1 min, writes reports/phase1/<area>/
 uv run --group dev pytest
 ```
+
+## Per-area summary
+
+| Area | BGT wegdeel current (drivable) | OSM ways kept / excluded | Median share of OSM length on drivable label: non-service / service | 8 cm offset: median dx, dy / worst (windows used) | 25 cm offset: median dx, dy / worst |
+|---|---|---|---|---|---|
+| `utrecht_centrum` | 10,260 (2,861) | 1,068 / 253 | 1.00 / 0.85 | +0.00, +0.16 / 0.36 m (16/16) | +0.00, +0.12 / 2.06 m |
+| `houten` | 8,189 (2,302) | 1,071 / 265 | 1.00 / 1.00 | +0.00, +0.16 / 0.23 m (16/16) | +0.00, +0.00 / 0.35 m |
+| `benschop` | 1,049 (471) | 110 / 29 | 1.00 / 0.97 | +0.00, +0.16 / 1.79 m (11/16) | +0.25, -0.25 / 0.79 m |
+
+Alignment windows with fewer than 5,000 BGT edge pixels (fields only) are
+skipped. The 1.79 m Benschop window holds a single straight provincial road:
+the shift is almost entirely along the road (cross-road component about
+0.2 m), which a single straight road cannot constrain. An 8 cm crop shows
+BGT on the visible asphalt.
+
+The detailed numbers below are for `utrecht_centrum`.
 
 ## Sources (verified against official docs on 2026-10-12)
 
@@ -125,7 +149,15 @@ kerbs on the visible kerbs and OSM centrelines inside the carriageways.
    market square in `crop_market_square.jpg` and the square in the top left of
    `crop_pausdam.jpg`, with no OSM drivable way on them. These will show up as
    unmatched polygons in Phase 3.
-6. `calamiteitendoorsteek` and `woonerf` do not occur in this area, so their
-   handling is untested.
-7. Imagery is pinned to the 2025 layers; BGT and OSM are live snapshots (dates
+6. `calamiteitendoorsteek` occurs in none of the three areas and `woonerf`
+   only once (Houten), so their handling is barely tested.
+7. **OSM and BGT disagree on some rural parallel roads.** Benschop's
+   Ingenieur F E D Enschedeweg parallel road is OSM `unclassified`
+   (`agricultural=yes`, `bicycle=yes`, 60 km/h) but BGT `fietspad`. Phase 3
+   will find no carriageway there; the multi-class mask will call it cycle path.
+8. **`inrit` (driveway entrance) polygons are common in suburbs** (598 in
+   Houten). They count as drivable and touch the carriageway, so profiles that
+   cross one will read wide; Phase 3's spread flag and medians should absorb
+   this, to be checked on overlays.
+9. Imagery is pinned to the 2025 layers; BGT and OSM are live snapshots (dates
    in `data/<area>/manifest.json`), so the imagery can lag recent road works.

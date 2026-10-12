@@ -33,6 +33,8 @@ from backbone.fetch import DATA_DIR  # noqa: E402
 log = logging.getLogger("backbone.qa")
 
 REPORTS_DIR = Path("reports/phase1")
+# Windows with fewer BGT edge pixels (e.g. only fields) give no reliable offset.
+MIN_EDGE_PIXELS = 5000
 
 # BGT styling: drivable classes filled, others outlined.
 DRIVABLE_STYLE = {"facecolor": "#ffb000", "alpha": 0.35}
@@ -138,7 +140,9 @@ def render_crop(area_dir: Path, out: Path, label: str, x: float, y: float, bgt, 
     plt.close(fig)
 
 
-def edge_offset(tif: Path, bbox: BBox, bgt, res: float, max_shift_m: float = 2.0):
+def edge_offset(
+    tif: Path, bbox: BBox, bgt, res: float, max_shift_m: float = 2.0, min_edge_pixels: int = MIN_EDGE_PIXELS
+):
     """Shift BGT ground-level boundaries over the image gradient magnitude and
     return the (dx, dy) in metres with the strongest mean edge response.
 
@@ -162,6 +166,9 @@ def edge_offset(tif: Path, bbox: BBox, bgt, res: float, max_shift_m: float = 2.0
     mask[:n + 1, :] = mask[-n - 1 :, :] = mask[:, : n + 1] = mask[:, -n - 1 :] = False
     px = bbox.width / w
     rows, cols = np.nonzero(mask)
+    if len(rows) < max(min_edge_pixels, 1):
+        return {"dx_m": None, "dy_m": None, "pixel_m": round(px, 3), "peak_over_zero": None,
+                "edge_pixels": int(len(rows))}, None  # fmt: skip
     scores = np.zeros((2 * n + 1, 2 * n + 1))
     for i, dy in enumerate(range(-n, n + 1)):
         for j, dx in enumerate(range(-n, n + 1)):
@@ -196,14 +203,16 @@ def alignment_check(area_dir: Path, out_dir: Path, bbox: BBox, bgt, n_side: int 
                 r, _ = edge_offset(tif, win, bgt, res)
                 r["window"] = win.as_tuple()
                 rows.append(r)
-                log.info("%s window %s: dx=%.2f dy=%.2f", key, (ix, iy), r["dx_m"], r["dy_m"])
-        dx = np.array([r["dx_m"] for r in rows])
-        dy = np.array([r["dy_m"] for r in rows])
+                log.info("%s window %s: dx=%s dy=%s", key, (ix, iy), r["dx_m"], r["dy_m"])
+        used = [r for r in rows if r["dx_m"] is not None]
+        dx = np.array([r["dx_m"] for r in used])
+        dy = np.array([r["dy_m"] for r in used])
         results[key] = {
             "analysis_pixel_m": rows[0]["pixel_m"],
             "median_dx_m": float(np.median(dx)),
             "median_dy_m": float(np.median(dy)),
             "max_abs_shift_m": float(np.max(np.hypot(dx, dy))),
+            "windows_used": len(used),
             "windows": rows,
         }
         ax = axes[k]
@@ -216,7 +225,7 @@ def alignment_check(area_dir: Path, out_dir: Path, bbox: BBox, bgt, n_side: int 
         ax.set_aspect("equal")
         ax.set_xlabel("best-fit BGT shift east (m)")
         ax.set_ylabel("best-fit BGT shift north (m)")
-        ax.set_title(f"{key}: {len(rows)} windows of {step_x:.0f} m, analysed at {rows[0]['pixel_m']} m/px")
+        ax.set_title(f"{key}: {len(used)}/{len(rows)} windows of {step_x:.0f} m, analysed at {rows[0]['pixel_m']} m/px")
     fig.tight_layout()
     fig.savefig(out_dir / "alignment.png", dpi=120)
     plt.close(fig)

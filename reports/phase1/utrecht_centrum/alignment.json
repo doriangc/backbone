@@ -4,6 +4,7 @@
     "median_dx_m": 0.0,
     "median_dy_m": 0.16,
     "max_abs_shift_m": 0.35777087639996635,
+    "windows_used": 16,
     "windows": [
       {
         "dx_m": 0.0,
@@ -220,6 +221,7 @@
     "median_dx_m": 0.0,
     "median_dy_m": 0.125,
     "max_abs_shift_m": 2.0615528128088303,
+    "windows_used": 16,
     "windows": [
       {
         "dx_m": 0.25,

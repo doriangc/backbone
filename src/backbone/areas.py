@@ -40,6 +40,7 @@ class BBox:
 class Area:
     name: str
     bbox: BBox
+    area_type: str  # "city", "suburb" or "rural", for per-type metrics
     description: str = ""
     # QA zoom crops: (label, x_centre, y_centre) in RD metres.
     qa_crops: tuple[tuple[str, float, float], ...] = field(default=())
@@ -51,11 +52,34 @@ AREAS = {
         Area(
             name="utrecht_centrum",
             bbox=BBox(135900, 454900, 137900, 456900),
+            area_type="city",
             description="Dense city centre: old town, singels, station area and ring roads.",
             qa_crops=(
                 ("pausdam", 136940, 455840),
                 ("market_square", 136260, 456010),
                 ("biltstraat", 137600, 456260),
+            ),
+        ),
+        Area(
+            name="houten",
+            bbox=BBox(139000, 448100, 141000, 450100),
+            area_type="suburb",
+            description="Houten: residential loops and cul-de-sacs, ring road, rail line, business park.",
+            qa_crops=(
+                ("roundabout", 140570, 448700),
+                ("residential_loop", 139500, 449100),
+                ("business_park", 140100, 448300),
+            ),
+        ),
+        Area(
+            name="benschop",
+            bbox=BBox(126400, 445400, 128400, 447400),
+            area_type="rural",
+            description="Benschop: ribbon village on a dike road, polder access roads, provincial road.",
+            qa_crops=(
+                ("dorp", 127160, 446795),
+                ("provincial_road", 127667, 445638),
+                ("village_residential", 127173, 446585),
             ),
         ),
     ]
