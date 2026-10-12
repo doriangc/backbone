@@ -34,6 +34,20 @@ BGT_DRIVABLE_FUNCTIES = frozenset(
     }
 )
 
+# Paved classes (`fysiek_voorkomen`) of the onbegroeidterreindeel layer. They
+# count as drivable only where a kept OSM service way runs over them; elsewhere
+# they are plazas, schoolyards, etc. (decision 2026-10-12). `erf` is a whole
+# yard (paving, gardens and trees, "not surveyed in more detail") and is never
+# drivable.
+BGT_PAVED_TERRAIN = frozenset({"gesloten verharding", "open verharding"})
+# A service way is dropped when more than this share of its length lies on
+# `erf`: private yards whose road surface BGT does not map (decision 2026-10-12).
+OSM_SERVICE_MAX_ERF_SHARE = 0.5
+# Minimum length (m) of a service way inside a paved terrain polygon for that
+# polygon to count as drivable; avoids ways that only clip a corner or edge.
+SERVICE_PAVED_MIN_OVERLAP_M = 1.0
+SERVICE_PAVED_EDGE_M = 0.5
+
 # --- Luchtfoto -------------------------------------------------------------
 LUCHTFOTO_WMS_URL = "https://service.pdok.nl/hwh/luchtfotorgb/wms/v1_0"
 LUCHTFOTO_LICENSE = "CC BY 4.0, attribution: Beeldmateriaal.nl"

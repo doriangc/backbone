@@ -17,7 +17,8 @@ uv run --group dev pytest
 | BGT wegdeel | OGC API Features `https://api.pdok.nl/kadaster/bgt/ogc/v1/collections/wegdeel/items`, native EPSG:28992 | current versions only (see below) | CC0 1.0 |
 | Luchtfoto 8 cm | WMS `https://service.pdok.nl/hwh/luchtfotorgb/wms/v1_0` | `2025_orthoHR` | CC BY 4.0, credit Beeldmateriaal.nl |
 | Luchtfoto 25 cm | same | `2025_ortho25` | CC BY 4.0, credit Beeldmateriaal.nl |
-| OSM | Overpass `https://overpass-api.de/api/interpreter` | drivable `highway` values from SPEC, no `track`, no `area=yes`, no parking, no roads hidden from above (see below) | ODbL 1.0 |
+| BGT onbegroeidterreindeel | same API, collection `onbegroeidterreindeel` | current, ground level; paved classes used under service ways (see below) | CC0 1.0 |
+| OSM | Overpass `https://overpass-api.de/api/interpreter` | drivable `highway` values from SPEC, no `track`, no `area=yes`, no parking, no roads hidden from above, no service roads in private yards (see below) | ODbL 1.0 |
 
 BGT `functie` values come from the BGT catalogue (FunctieWeg codelist,
 https://docs.geostandaarden.nl/imgeo/catalogus/bgt/). Drivable = `rijbaan *`,
@@ -29,8 +30,9 @@ https://docs.geostandaarden.nl/imgeo/catalogus/bgt/). Drivable = `rijbaan *`,
 |---|---|
 | BGT versions returned by API | 26,426 |
 | BGT current objects | 10,260 (2,861 drivable) |
-| OSM drivable ways kept | 1,136 (638 residential, 229 service, 136 unclassified, 93 tertiary, 40 secondary) |
-| OSM ways excluded | 185: 121 parking (5.1 km), 54 not visible (2.0 km), 10 both |
+| OSM drivable ways kept | 1,068 (638 residential, 161 service, 136 unclassified, 93 tertiary, 40 secondary) |
+| OSM ways excluded | 253 (10.5 km); reasons can combine: parking 131, not visible 64, private yard 134 (68 of them for that reason only) |
+| BGT paved terrain under a service way | 11 polygons, 9,700 m² |
 | Imagery 8 cm | 25,000 x 25,000 px, 159 MB, 0.07% blank |
 | Imagery 25 cm | 8,000 x 8,000 px, 25 MB, 0.02% blank |
 
@@ -52,10 +54,27 @@ magenta in the overlays.
   classes; 6 of the 64 are residential or unclassified, e.g. Catharijnesingel
   under Hoog Catharijne. A negative `layer` alone does not exclude: in this area
   those are open garage ramps.
+- `private_yard`: service ways with more than 50% of their length on BGT
+  onbegroeidterreindeel `erf` (whole yards; BGT does not map the road surface
+  there). The erf share is bimodal (151 service ways near 0%, 59 above 70%),
+  so the threshold is not sensitive. `access=private` was not used: 41 private
+  service ways lie on mapped road surface.
+
+**Paved terrain under service ways** (`fetch.mark_service_paved`): BGT
+onbegroeidterreindeel polygons with `fysiek_voorkomen` `gesloten verharding` or
+`open verharding` count as drivable (`service_paved` in
+`bgt_onbegroeidterreindeel.gpkg`, green in the overlays) when a kept OSM service
+way runs at least 1 m through them, measured 0.5 m inside the polygon edge so a
+way along the edge does not count. Elsewhere these classes are plazas and
+schoolyards and are not drivable.
 
 **OSM vs BGT:** share of each OSM way's length that lies inside BGT drivable polygons
 (median): residential, secondary, tertiary, unclassified 1.00 (mean 0.92 to 0.96);
-service 0.28 (was 0.22 before the exclusions).
+service 0.85 against wegdeel drivable plus paved terrain (0.22 before any of
+the service rules; 75% of the kept service length is covered). 21 of 161 kept
+service ways are still under 20% covered; they lie mostly on `voetpad` (55%)
+and `parkeervlak` (19%), e.g. brick paths used by delivery vehicles. Phase 3
+should flag these as "no polygon found" rather than filter them here.
 
 **By eye:** `overview.jpg` and the three 8 cm crops (`crop_*.jpg`) show BGT
 kerbs on the visible kerbs and OSM centrelines inside the carriageways.
@@ -95,6 +114,9 @@ kerbs on the visible kerbs and OSM centrelines inside the carriageways.
    cannot be a road label. `gesloten verharding` (closed paving: asphalt,
    concrete) and `open verharding` (bricks, tiles) follow the paved surface,
    e.g. the service road along the rail yard.
+
+   Resolution (2026-10-12): drop service ways mostly on `erf`, and use the
+   paved classes only under service ways (see OSM exclusions above).
 4. **BGT keeps covered roads at ground level.** The carriageway under
    Hoog Catharijne is `rijbaan lokale weg` with `relatieve_hoogteligging = 0`,
    although a building covers it. Filtering BGT by level will not remove it;

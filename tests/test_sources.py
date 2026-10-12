@@ -1,6 +1,7 @@
 import re
 
 import geopandas as gpd
+import pandas as pd
 import pytest
 from shapely.geometry import box
 
@@ -141,3 +142,52 @@ def test_write_json_gz_is_byte_reproducible(tmp_path):
 )
 def test_exclusion_reasons(tags, expected):
     assert exclusion_reasons(tags) == expected
+
+
+def _ways(*rows):
+    from shapely.geometry import LineString
+
+    return gpd.GeoDataFrame(
+        [{"osm_id": i, "highway": h, "exclude": ex, "geometry": LineString(coords)} for i, h, ex, coords in rows],
+        geometry="geometry",
+        crs=28992,
+    )
+
+
+def test_mark_private_yards():
+    from backbone.fetch import mark_private_yards
+
+    erf = box(0, 0, 10, 10)
+    ways = _ways(
+        (1, "service", None, [(1, 5), (9, 5)]),  # fully on erf
+        (2, "service", None, [(5, 5), (15, 5)]),  # exactly half: kept
+        (3, "service", None, [(4, 5), (14, 5)]),  # 60% on erf
+        (4, "residential", None, [(1, 5), (9, 5)]),  # rule is service-only
+        (5, "service", "parking", [(1, 5), (9, 5)]),
+        (6, "service", None, [(20, 5), (30, 5)]),
+    )
+    out = mark_private_yards(ways, erf).set_index("osm_id")
+    assert out.loc[1, "exclude"] == "private_yard"
+    assert pd.isna(out.loc[2, "exclude"])
+    assert out.loc[3, "exclude"] == "private_yard"
+    assert pd.isna(out.loc[4, "exclude"])
+    assert out.loc[5, "exclude"] == "parking;private_yard"
+    assert pd.isna(out.loc[6, "exclude"])
+    assert out.loc[3, "erf_share"] == pytest.approx(0.6)
+
+
+def test_mark_service_paved():
+    from backbone.fetch import mark_service_paved
+
+    terrain = gpd.GeoDataFrame(
+        {"paved": [True, True, True, False]},
+        geometry=[box(0, 0, 10, 10), box(20, 0, 30, 10), box(40, 0, 50, 10), box(60, 0, 70, 10)],
+        crs=28992,
+    )
+    ways = _ways(
+        (1, "service", None, [(-5, 5), (15, 5)]),  # crosses polygon 0
+        (2, "residential", None, [(25, -5), (25, 15)]),  # polygon 1: not a service way
+        (3, "service", None, [(40, -5), (40, 15)]),  # runs along polygon 2's edge only
+        (4, "service", None, [(65, -5), (65, 15)]),  # polygon 3 is not paved
+    )
+    assert mark_service_paved(terrain, ways).tolist() == [True, False, False, False]

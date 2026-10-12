@@ -20,6 +20,7 @@ from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
+import pandas as pd
 import rasterio
 import requests
 from PIL import Image
@@ -146,6 +147,45 @@ def fetch_bgt(bbox: BBox, out_dir: Path, s: requests.Session) -> dict:
         "raw_file": raw_path.name,
         "raw_sha256": sha256(raw_path),  # GPKGs embed write times, so only raw is hashed
     }
+
+
+def fetch_bgt_terrain(bbox: BBox, out_dir: Path, s: requests.Session):
+    """Current, ground-level onbegroeidterreindeel (unvegetated terrain)."""
+    all_versions, raw_path = fetch_bgt_collection("onbegroeidterreindeel", bbox, out_dir, s)
+    cur = bgt_current(all_versions)
+    cur = cur[cur["relatieve_hoogteligging"] == 0].copy()
+    cur["paved"] = cur["fysiek_voorkomen"].isin(config.BGT_PAVED_TERRAIN)
+    info = {
+        "endpoint": f"{config.BGT_API_URL}/collections/onbegroeidterreindeel/items",
+        "license": config.BGT_LICENSE,
+        "fetched_versions": len(all_versions),
+        "current_ground_features": len(cur),
+        "fysiek_voorkomen_counts": cur["fysiek_voorkomen"].value_counts().to_dict(),
+        "raw_file": raw_path.name,
+        "raw_sha256": sha256(raw_path),
+    }
+    return cur, info
+
+
+def mark_service_paved(terrain: gpd.GeoDataFrame, ways: gpd.GeoDataFrame) -> pd.Series:
+    """True for paved terrain polygons that a kept OSM service way runs over
+    for at least SERVICE_PAVED_MIN_OVERLAP_M. Overlap is measured inside the
+    polygon shrunk by SERVICE_PAVED_EDGE_M, so a way running along the polygon's
+    edge (e.g. on the adjacent wegdeel) does not count."""
+    paved = terrain[terrain["paved"]]
+    svc = ways[ways["highway"] == "service"]
+    out = pd.Series(False, index=terrain.index)
+    if paved.empty or svc.empty:
+        return out
+    pairs = gpd.sjoin(paved[["geometry"]], svc[["geometry"]], predicate="intersects")
+    overlap = [
+        paved.geometry[i].buffer(-config.SERVICE_PAVED_EDGE_M).intersection(svc.geometry[j]).length
+        for i, j in zip(pairs.index, pairs["index_right"])
+    ]
+    pairs["overlap"] = overlap
+    per_poly = pairs.groupby(level=0)["overlap"].sum()
+    out[per_poly[per_poly >= config.SERVICE_PAVED_MIN_OVERLAP_M].index] = True
+    return out
 
 
 # --- Luchtfoto ---------------------------------------------------------------
@@ -328,7 +368,19 @@ def osm_to_gdf(osm: dict, bbox: BBox) -> gpd.GeoDataFrame:
     return gdf[gdf.intersects(box(*bbox.as_tuple()))].reset_index(drop=True)
 
 
-def fetch_osm(bbox: BBox, out_dir: Path, s: requests.Session) -> dict:
+def mark_private_yards(ways: gpd.GeoDataFrame, erf) -> gpd.GeoDataFrame:
+    """Add `erf_share` and the `private_yard` exclusion for service ways that
+    lie mostly on BGT `erf` (see config.OSM_SERVICE_MAX_ERF_SHARE)."""
+    ways = ways.copy()
+    ways["erf_share"] = (ways.geometry.intersection(erf).length / ways.length).round(3)
+    hit = (ways["highway"] == "service") & (ways["erf_share"] > config.OSM_SERVICE_MAX_ERF_SHARE)
+    ways.loc[hit, "exclude"] = ways.loc[hit, "exclude"].map(
+        lambda r: "private_yard" if r is None or pd.isna(r) else f"{r};private_yard"
+    )
+    return ways
+
+
+def fetch_osm(bbox: BBox, out_dir: Path, s: requests.Session, erf) -> tuple[gpd.GeoDataFrame, dict]:
     raw_path = out_dir / "osm_raw.json.gz"
     out_path = out_dir / "osm_drivable.gpkg"
     query = overpass_query(bbox)
@@ -341,14 +393,14 @@ def fetch_osm(bbox: BBox, out_dir: Path, s: requests.Session) -> dict:
         write_json_gz(osm, raw_path)
     with gzip.open(raw_path, "rt") as f:
         osm = json.load(f)
-    gdf = osm_to_gdf(osm, bbox)
+    gdf = mark_private_yards(osm_to_gdf(osm, bbox), erf)
     kept, excluded = gdf[gdf["exclude"].isna()], gdf[gdf["exclude"].notna()]
     # Derived files are always rebuilt from the cached raw download, so rule
     # changes take effect without refetching.
     out_path.unlink(missing_ok=True)
     kept.to_file(out_path, layer="ways", driver="GPKG")
     excluded.to_file(out_path, layer="excluded", driver="GPKG")
-    return {
+    return kept, {
         "endpoint": config.OVERPASS_URL,
         "query": query,
         "license": config.OSM_LICENSE,
@@ -382,8 +434,16 @@ def run(name: str, bbox: BBox, force: bool = False) -> Path:
     }
     log.info("BGT ...")
     manifest["bgt"] = fetch_bgt(bbox, out_dir, s)
+    log.info("BGT terrain ...")
+    terrain, manifest["bgt_terrain"] = fetch_bgt_terrain(bbox, out_dir, s)
     log.info("OSM ...")
-    manifest["osm"] = fetch_osm(bbox, out_dir, s)
+    erf = terrain[terrain["fysiek_voorkomen"] == "erf"].union_all()
+    ways, manifest["osm"] = fetch_osm(bbox, out_dir, s, erf)
+    terrain["service_paved"] = mark_service_paved(terrain, ways)
+    manifest["bgt_terrain"]["service_paved_features"] = int(terrain["service_paved"].sum())
+    terrain_path = out_dir / "bgt_onbegroeidterreindeel.gpkg"
+    terrain_path.unlink(missing_ok=True)
+    terrain.to_file(terrain_path, layer="onbegroeidterreindeel", driver="GPKG")
     manifest["luchtfoto"] = {}
     for key in config.LUCHTFOTO_LAYERS:
         log.info("Luchtfoto %s ...", key)

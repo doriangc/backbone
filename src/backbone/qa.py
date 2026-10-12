@@ -19,6 +19,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
 import rasterio  # noqa: E402
 from matplotlib.lines import Line2D  # noqa: E402
 from matplotlib.patches import Patch  # noqa: E402
@@ -35,6 +36,7 @@ REPORTS_DIR = Path("reports/phase1")
 
 # BGT styling: drivable classes filled, others outlined.
 DRIVABLE_STYLE = {"facecolor": "#ffb000", "alpha": 0.35}
+SERVICE_PAVED_STYLE = {"facecolor": "#3ddc84", "alpha": 0.35}
 OUTLINE_COLORS = {
     "fietspad": "#e0201b",
     "parkeervlak": "#1f6fff",
@@ -51,6 +53,12 @@ def load(area_dir: Path):
     bgt = gpd.read_file(area_dir / "bgt_wegdeel.gpkg", layer="wegdeel")
     osm = gpd.read_file(area_dir / "osm_drivable.gpkg", layer="ways")
     excluded = gpd.read_file(area_dir / "osm_drivable.gpkg", layer="excluded")
+    terrain = gpd.read_file(area_dir / "bgt_onbegroeidterreindeel.gpkg")
+    # Paved terrain under a service way is drivable; draw it with wegdeel.
+    bgt = pd.concat(
+        [bgt, terrain[terrain["service_paved"]].assign(functie="service_paved", drivable=False)],
+        ignore_index=True,
+    )
     return bgt, osm, excluded
 
 
@@ -70,6 +78,9 @@ def read_rgb(path: Path, bbox: BBox, max_px: int | None = None):
 def draw_layers(ax, bgt, osm, excluded, lw_scale=1.0):
     drv = bgt[bgt["drivable"]]
     drv.plot(ax=ax, linewidth=0.6 * lw_scale, edgecolor="#ffb000", **DRIVABLE_STYLE)
+    sp = bgt[bgt["functie"] == "service_paved"]
+    if len(sp):
+        sp.plot(ax=ax, linewidth=0.6 * lw_scale, edgecolor="#3ddc84", **SERVICE_PAVED_STYLE)
     for functie, color in OUTLINE_COLORS.items():
         sub = bgt[bgt["functie"] == functie]
         if len(sub):
@@ -82,12 +93,13 @@ def draw_layers(ax, bgt, osm, excluded, lw_scale=1.0):
 def legend(ax):
     handles = [
         Patch(facecolor=DRIVABLE_STYLE["facecolor"], alpha=0.6, label="BGT drivable (fill)"),
+        Patch(facecolor=SERVICE_PAVED_STYLE["facecolor"], alpha=0.6, label="BGT paved terrain under service way"),
         Line2D([], [], color=OUTLINE_COLORS["fietspad"], label="BGT fietspad"),
         Line2D([], [], color=OUTLINE_COLORS["parkeervlak"], label="BGT parkeervlak"),
         Line2D([], [], color=OUTLINE_COLORS["voetpad"], label="BGT voetpad/-gebied"),
         Line2D([], [], color=OUTLINE_COLORS["spoorbaan"], label="BGT spoorbaan"),
         Line2D([], [], color=OSM_COLOR, lw=2, label="OSM drivable way"),
-        Line2D([], [], color=OSM_EXCLUDED_COLOR, lw=2, ls="--", label="OSM excluded (parking / not visible)"),
+        Line2D([], [], color=OSM_EXCLUDED_COLOR, lw=2, ls="--", label="OSM excluded (parking / hidden / private yard)"),
     ]
     ax.legend(handles=handles, loc="lower left", fontsize=8, framealpha=0.85)
 
