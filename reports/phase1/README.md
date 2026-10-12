@@ -72,10 +72,29 @@ kerbs on the visible kerbs and OSM centrelines inside the carriageways.
    8 cm imagery gives consistent pairs; the 25 cm product is better kept as a
    separate domain test.
 3. **OSM `service` ways often have no BGT drivable surface, even after the
-   exclusions.** Of the 9.6 km of remaining service ways, 48% lies on no
-   wegdeel at all (private yards and courtyards, presumably in other BGT
-   layers), 33% on `rijbaan lokale weg`, 9% on `voetpad` and 6% on `parkeervlak`.
-   Underground roads were only a small part of the mismatch.
+   exclusions.** `notebooks/service_roads_bgt.py` attributes the 9.6 km of kept
+   service ways to the BGT ground layers (which together cover 100.1% of that
+   length, so the layers tile the ground):
+
+   | BGT layer / class | share of service length |
+   |---|---|
+   | wegdeel `rijbaan lokale weg` | 31.9% |
+   | onbegroeidterreindeel `erf` | 31.4% |
+   | onbegroeidterreindeel `gesloten verharding` | 11.9% |
+   | wegdeel `voetpad` | 8.9% |
+   | wegdeel `parkeervlak` | 5.7% |
+   | wegdeel `OV-baan` | 3.7% |
+   | onbegroeidterreindeel `open verharding` | 2.6% |
+   | other (water banks, green, buildings, ...) | ~4% |
+
+   By OSM type, `driveway` and `emergency_access` lie about 75% on
+   onbegroeidterreindeel; untyped service ways about 30%.
+   The BGT catalogue defines `erf` as the terrain belonging to a building,
+   "not surveyed in more detail", a mix of vegetation, paving and water. In the
+   imagery an `erf` polygon is a whole courtyard with gardens and trees, so it
+   cannot be a road label. `gesloten verharding` (closed paving: asphalt,
+   concrete) and `open verharding` (bricks, tiles) follow the paved surface,
+   e.g. the service road along the rail yard.
 4. **BGT keeps covered roads at ground level.** The carriageway under
    Hoog Catharijne is `rijbaan lokale weg` with `relatieve_hoogteligging = 0`,
    although a building covers it. Filtering BGT by level will not remove it;

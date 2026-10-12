@@ -86,9 +86,14 @@ def bgt_current(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     return cur
 
 
-def fetch_bgt(bbox: BBox, out_dir: Path, s: requests.Session) -> dict:
-    raw_path = out_dir / "bgt_wegdeel_raw.geojson.gz"
-    out_path = out_dir / "bgt_wegdeel.gpkg"
+def fetch_bgt_collection(
+    collection: str, bbox: BBox, out_dir: Path, s: requests.Session
+) -> tuple[gpd.GeoDataFrame, Path]:
+    """Download (or reuse) all versions of one BGT collection intersecting bbox.
+
+    Returns every version; apply bgt_current to get the present state.
+    """
+    raw_path = out_dir / f"bgt_{collection}_raw.geojson.gz"
     if not raw_path.exists():
         params = {
             "f": "json",
@@ -97,7 +102,7 @@ def fetch_bgt(bbox: BBox, out_dir: Path, s: requests.Session) -> dict:
             "bbox-crs": config.RD_CRS_URI,
             "crs": config.RD_CRS_URI,
         }
-        url, features, pages = config.BGT_ITEMS_URL, [], 0
+        url, features, pages = f"{config.BGT_API_URL}/collections/{collection}/items", [], 0
         while url:
             r = s.get(url, params=params, timeout=180)
             r.raise_for_status()
@@ -108,12 +113,17 @@ def fetch_bgt(bbox: BBox, out_dir: Path, s: requests.Session) -> dict:
             pages += 1
             params = None  # the next link carries all parameters
             url = next((l["href"] for l in page["links"] if l["rel"] == "next"), None)
-            log.info("BGT page %d: %d features so far", pages, len(features))
+            log.info("BGT %s page %d: %d features so far", collection, pages, len(features))
         write_json_gz({"type": "FeatureCollection", "features": features}, raw_path)
 
     with gzip.open(raw_path, "rt") as f:
         features = json.load(f)["features"]
-    all_versions = gpd.GeoDataFrame.from_features(features, crs=config.RD_EPSG)
+    return gpd.GeoDataFrame.from_features(features, crs=config.RD_EPSG), raw_path
+
+
+def fetch_bgt(bbox: BBox, out_dir: Path, s: requests.Session) -> dict:
+    out_path = out_dir / "bgt_wegdeel.gpkg"
+    all_versions, raw_path = fetch_bgt_collection("wegdeel", bbox, out_dir, s)
     cur = bgt_current(all_versions)
     cur["drivable"] = cur["functie"].isin(config.BGT_DRIVABLE_FUNCTIES)
     out_path.unlink(missing_ok=True)
@@ -126,7 +136,7 @@ def fetch_bgt(bbox: BBox, out_dir: Path, s: requests.Session) -> dict:
     if unknown:
         log.warning("BGT functie values outside the codelist: %s", sorted(unknown))
     return {
-        "endpoint": config.BGT_ITEMS_URL,
+        "endpoint": f"{config.BGT_API_URL}/collections/wegdeel/items",
         "license": config.BGT_LICENSE,
         "fetched_versions": len(all_versions),
         "current_features": len(cur),

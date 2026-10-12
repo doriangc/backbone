@@ -11,7 +11,7 @@ RD_EPSG = 28992
 WGS84_EPSG = 4326
 
 # --- BGT -------------------------------------------------------------------
-BGT_ITEMS_URL = "https://api.pdok.nl/kadaster/bgt/ogc/v1/collections/wegdeel/items"
+BGT_API_URL = "https://api.pdok.nl/kadaster/bgt/ogc/v1"
 BGT_LICENSE = "CC0 1.0 (http://creativecommons.org/publicdomain/zero/1.0/)"
 RD_CRS_URI = "http://www.opengis.net/def/crs/EPSG/0/28992"
 BGT_PAGE_LIMIT = 1000
