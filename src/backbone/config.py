@@ -83,3 +83,22 @@ OSM_LINK_HIGHWAYS = frozenset({"motorway", "trunk", "primary", "secondary", "ter
 OSM_PARKING_SERVICE = frozenset({"parking_aisle", "parking"})
 
 USER_AGENT = "backbone-research/0.1 (road surface polygons from aerial imagery)"
+
+# --- Phase 2 baseline --------------------------------------------------------
+# Default lane widths (m) per highway class (`_link` uses its base class).
+# These are project assumptions, not values from a standard (approved 2026-10-12).
+LANE_WIDTH_M = {
+    "motorway": 3.5,
+    "trunk": 3.5,
+    "primary": 3.5,
+    "secondary": 3.25,
+    "tertiary": 3.25,
+    "unclassified": 3.0,
+    "residential": 3.0,
+    "service": 3.0,
+}
+# Scoring geometry for the baseline (and later Phase 3 previews).
+EVAL_MARGIN_M = 25.0  # only score inside the area box shrunk by this
+CORRIDOR_HALF_WIDTH_M = 20.0  # reference surface is searched this far from the line
+VORONOI_SPACING_M = 1.0  # centreline sampling for the nearest-centreline partition
+GALLERY_MIN_LENGTH_M = 10.0
