@@ -5,7 +5,13 @@ import pytest
 from shapely.geometry import box
 
 from backbone.areas import AREAS, BBox
-from backbone.fetch import bgt_current, is_drivable_highway, osm_to_gdf, overpass_query
+from backbone.fetch import (
+    bgt_current,
+    exclusion_reasons,
+    is_drivable_highway,
+    osm_to_gdf,
+    overpass_query,
+)
 
 
 def test_wgs84_envelope_contains_rd_bbox():
@@ -65,6 +71,7 @@ def test_osm_to_gdf_filters_and_keeps_nodes():
     ]
     gdf = osm_to_gdf({"elements": nodes + ways}, AREAS["utrecht_centrum"].bbox)
     assert list(gdf["osm_id"]) == [100]
+    assert gdf.iloc[0]["exclude"] is None
     assert gdf.crs.to_epsg() == 28992
     assert gdf.iloc[0]["nodes"] == "[1, 2, 3]"
     assert gdf.iloc[0]["lanes"] == "2"
@@ -106,3 +113,31 @@ def test_write_json_gz_is_byte_reproducible(tmp_path):
     time.sleep(1.1)  # gzip mtime has 1 s resolution
     write_json_gz({"x": [1, 2, 3]}, b)
     assert sha256(a) == sha256(b)
+
+
+@pytest.mark.parametrize(
+    "tags,expected",
+    [
+        ({"highway": "service"}, []),
+        ({"highway": "service", "service": "driveway"}, []),
+        ({"highway": "service", "service": "alley"}, []),
+        ({"highway": "service", "service": "parking_aisle"}, ["parking"]),
+        ({"highway": "service", "parking": "underground"}, ["parking"]),
+        ({"highway": "service", "tunnel": "yes", "layer": "-1"}, ["not_visible"]),
+        ({"highway": "residential", "tunnel": "building_passage"}, ["not_visible"]),
+        ({"highway": "service", "tunnel": "no"}, []),
+        ({"highway": "service", "covered": "yes"}, ["not_visible"]),
+        ({"highway": "service", "covered": "no"}, []),
+        ({"highway": "service", "indoor": "yes"}, ["not_visible"]),
+        ({"highway": "service", "location": "underground"}, ["not_visible"]),
+        ({"highway": "service", "level": "-1"}, ["not_visible"]),
+        ({"highway": "service", "level": "0;-1"}, ["not_visible"]),
+        ({"highway": "service", "level": "1"}, []),
+        ({"highway": "service", "level": "garbage"}, []),
+        # Open ramp into a garage: negative layer alone stays in.
+        ({"highway": "service", "service": "driveway", "layer": "-1", "incline": "down"}, []),
+        ({"highway": "service", "service": "parking_aisle", "level": "-1"}, ["parking", "not_visible"]),
+    ],
+)
+def test_exclusion_reasons(tags, expected):
+    assert exclusion_reasons(tags) == expected

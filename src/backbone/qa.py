@@ -44,12 +44,14 @@ OUTLINE_COLORS = {
     "spoorbaan": "#7a3db8",
 }
 OSM_COLOR = "#00e5ff"
+OSM_EXCLUDED_COLOR = "#ff2bd6"
 
 
 def load(area_dir: Path):
     bgt = gpd.read_file(area_dir / "bgt_wegdeel.gpkg", layer="wegdeel")
     osm = gpd.read_file(area_dir / "osm_drivable.gpkg", layer="ways")
-    return bgt, osm
+    excluded = gpd.read_file(area_dir / "osm_drivable.gpkg", layer="excluded")
+    return bgt, osm, excluded
 
 
 def read_rgb(path: Path, bbox: BBox, max_px: int | None = None):
@@ -65,7 +67,7 @@ def read_rgb(path: Path, bbox: BBox, max_px: int | None = None):
     return arr.transpose(1, 2, 0), bounds
 
 
-def draw_layers(ax, bgt, osm, lw_scale=1.0):
+def draw_layers(ax, bgt, osm, excluded, lw_scale=1.0):
     drv = bgt[bgt["drivable"]]
     drv.plot(ax=ax, linewidth=0.6 * lw_scale, edgecolor="#ffb000", **DRIVABLE_STYLE)
     for functie, color in OUTLINE_COLORS.items():
@@ -73,6 +75,8 @@ def draw_layers(ax, bgt, osm, lw_scale=1.0):
         if len(sub):
             sub.boundary.plot(ax=ax, color=color, linewidth=0.6 * lw_scale)
     osm.plot(ax=ax, color=OSM_COLOR, linewidth=1.2 * lw_scale)
+    if len(excluded):
+        excluded.plot(ax=ax, color=OSM_EXCLUDED_COLOR, linewidth=1.2 * lw_scale, linestyle=(0, (2, 1)))
 
 
 def legend(ax):
@@ -83,15 +87,16 @@ def legend(ax):
         Line2D([], [], color=OUTLINE_COLORS["voetpad"], label="BGT voetpad/-gebied"),
         Line2D([], [], color=OUTLINE_COLORS["spoorbaan"], label="BGT spoorbaan"),
         Line2D([], [], color=OSM_COLOR, lw=2, label="OSM drivable way"),
+        Line2D([], [], color=OSM_EXCLUDED_COLOR, lw=2, ls="--", label="OSM excluded (parking / not visible)"),
     ]
     ax.legend(handles=handles, loc="lower left", fontsize=8, framealpha=0.85)
 
 
-def render_overview(area_dir: Path, out: Path, bbox: BBox, bgt, osm):
+def render_overview(area_dir: Path, out: Path, bbox: BBox, bgt, osm, excluded):
     img, (l, b, r, t) = read_rgb(area_dir / "luchtfoto_25cm.tif", bbox, max_px=4000)
     fig, ax = plt.subplots(figsize=(20, 20), dpi=200)
     ax.imshow(img, extent=(l, r, b, t))
-    draw_layers(ax, bgt, osm, lw_scale=0.7)
+    draw_layers(ax, bgt, osm, excluded, lw_scale=0.7)
     ax.set_xlim(l, r)
     ax.set_ylim(b, t)
     ax.set_title(f"{area_dir.name}: Luchtfoto 2025 25 cm + BGT wegdeel + OSM (EPSG:28992)")
@@ -101,17 +106,18 @@ def render_overview(area_dir: Path, out: Path, bbox: BBox, bgt, osm):
     plt.close(fig)
 
 
-def render_crop(area_dir: Path, out: Path, label: str, x: float, y: float, bgt, osm, half=80.0):
+def render_crop(area_dir: Path, out: Path, label: str, x: float, y: float, bgt, osm, excluded, half=80.0):
     bb = BBox(x - half, y - half, x + half, y + half)
     img, (l, b, r, t) = read_rgb(area_dir / "luchtfoto_8cm.tif", bb)
     clip = bgt.cx[l:r, b:t]
     osm_clip = osm.cx[l:r, b:t]
+    excl_clip = excluded.cx[l:r, b:t]
     fig, axes = plt.subplots(1, 2, figsize=(20, 10), dpi=150)
     for ax in axes:
         ax.imshow(img, extent=(l, r, b, t))
         ax.set_xlim(l, r)
         ax.set_ylim(b, t)
-    draw_layers(axes[1], clip, osm_clip, lw_scale=1.5)
+    draw_layers(axes[1], clip, osm_clip, excl_clip, lw_scale=1.5)
     axes[0].set_title(f"{label}: Luchtfoto 2025 8 cm")
     axes[1].set_title(f"{label}: + BGT + OSM  (centre {x:.0f}, {y:.0f})")
     legend(axes[1])
@@ -210,12 +216,12 @@ def run(name: str, bbox: BBox, crops) -> Path:
     area_dir = DATA_DIR / name
     out_dir = REPORTS_DIR / name
     out_dir.mkdir(parents=True, exist_ok=True)
-    bgt, osm = load(area_dir)
+    bgt, osm, excluded = load(area_dir)
     log.info("overview ...")
-    render_overview(area_dir, out_dir / "overview.jpg", bbox, bgt, osm)
+    render_overview(area_dir, out_dir / "overview.jpg", bbox, bgt, osm, excluded)
     for label, x, y in crops:
         log.info("crop %s ...", label)
-        render_crop(area_dir, out_dir / f"crop_{label}.jpg", label, x, y, bgt, osm)
+        render_crop(area_dir, out_dir / f"crop_{label}.jpg", label, x, y, bgt, osm, excluded)
     log.info("alignment ...")
     res = alignment_check(area_dir, out_dir, bbox, bgt)
     for key, r in res.items():

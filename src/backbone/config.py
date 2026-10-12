@@ -64,5 +64,8 @@ OSM_DRIVABLE_HIGHWAYS = frozenset(
     }
 )
 OSM_LINK_HIGHWAYS = frozenset({"motorway", "trunk", "primary", "secondary", "tertiary"})
+# Parking is out of scope; other service roads (driveways, alleys, ...) stay in
+# (decision 2026-10-12).
+OSM_PARKING_SERVICE = frozenset({"parking_aisle", "parking"})
 
 USER_AGENT = "backbone-research/0.1 (road surface polygons from aerial imagery)"

@@ -116,8 +116,8 @@ def fetch_bgt(bbox: BBox, out_dir: Path, s: requests.Session) -> dict:
     all_versions = gpd.GeoDataFrame.from_features(features, crs=config.RD_EPSG)
     cur = bgt_current(all_versions)
     cur["drivable"] = cur["functie"].isin(config.BGT_DRIVABLE_FUNCTIES)
-    if not out_path.exists():
-        cur.to_file(out_path, layer="wegdeel", driver="GPKG")
+    out_path.unlink(missing_ok=True)
+    cur.to_file(out_path, layer="wegdeel", driver="GPKG")
 
     unknown = set(cur["functie"]) - config.BGT_DRIVABLE_FUNCTIES - {
         "spoorbaan", "baan voor vliegverkeer", "fietspad", "voetpad",
@@ -255,9 +255,47 @@ KEEP_TAGS = [
 ]  # fmt: skip
 
 
+def _set(tags: dict, key: str) -> bool:
+    return tags.get(key) not in (None, "no")
+
+
+def _below_ground_level(level: str | None) -> bool:
+    try:
+        return level is not None and any(float(v) < 0 for v in level.split(";"))
+    except ValueError:
+        return False
+
+
+def exclusion_reasons(tags: dict) -> list[str]:
+    """Why a drivable-highway way is left out of the label set (empty = keep).
+
+    - parking: parking aisles and similar (out of scope, see config).
+    - not_visible: the road surface is hidden from aerial imagery: tunnels and
+      building passages, covered or indoor roads, and underground garage levels.
+      A bare negative `layer` is not enough; in the pilot those are open ramps.
+    """
+    reasons = []
+    if (
+        tags.get("service") in config.OSM_PARKING_SERVICE
+        or tags.get("amenity") == "parking"
+        or "parking" in tags
+    ):
+        reasons.append("parking")
+    if (
+        _set(tags, "tunnel")
+        or _set(tags, "covered")
+        or _set(tags, "indoor")
+        or tags.get("location") in ("underground", "indoor")
+        or _below_ground_level(tags.get("level"))
+    ):
+        reasons.append("not_visible")
+    return reasons
+
+
 def osm_to_gdf(osm: dict, bbox: BBox) -> gpd.GeoDataFrame:
     """Ways as LineStrings in RD New. Node ids are kept (JSON list) so ways can
-    be split at shared nodes in Phase 2. Ways are kept whole, not clipped."""
+    be split at shared nodes in Phase 2. Ways are kept whole, not clipped.
+    `exclude` lists the reasons a way is left out (see exclusion_reasons)."""
     nodes = {e["id"]: (e["lon"], e["lat"]) for e in osm["elements"] if e["type"] == "node"}
     rows = []
     for e in osm["elements"]:
@@ -272,6 +310,7 @@ def osm_to_gdf(osm: dict, bbox: BBox) -> gpd.GeoDataFrame:
         row = {"osm_id": e["id"], **{k: tags.get(k) for k in KEEP_TAGS}}
         row["nodes"] = json.dumps(e["nodes"])
         row["tags"] = json.dumps(tags, ensure_ascii=False)
+        row["exclude"] = ";".join(exclusion_reasons(tags)) or None
         row["geometry"] = LineString([nodes[n] for n in e["nodes"]])
         rows.append(row)
     gdf = gpd.GeoDataFrame(rows, geometry="geometry", crs=config.WGS84_EPSG).to_crs(config.RD_EPSG)
@@ -293,15 +332,21 @@ def fetch_osm(bbox: BBox, out_dir: Path, s: requests.Session) -> dict:
     with gzip.open(raw_path, "rt") as f:
         osm = json.load(f)
     gdf = osm_to_gdf(osm, bbox)
-    if not out_path.exists():
-        gdf.to_file(out_path, layer="ways", driver="GPKG")
+    kept, excluded = gdf[gdf["exclude"].isna()], gdf[gdf["exclude"].notna()]
+    # Derived files are always rebuilt from the cached raw download, so rule
+    # changes take effect without refetching.
+    out_path.unlink(missing_ok=True)
+    kept.to_file(out_path, layer="ways", driver="GPKG")
+    excluded.to_file(out_path, layer="excluded", driver="GPKG")
     return {
         "endpoint": config.OVERPASS_URL,
         "query": query,
         "license": config.OSM_LICENSE,
         "osm_base_timestamp": osm["osm3s"]["timestamp_osm_base"],
-        "ways": len(gdf),
-        "highway_counts": gdf["highway"].value_counts().to_dict(),
+        "ways": len(kept),
+        "highway_counts": kept["highway"].value_counts().to_dict(),
+        "excluded_ways": excluded["exclude"].value_counts().to_dict(),
+        "excluded_length_m": excluded.length.groupby(excluded["exclude"]).sum().round().to_dict(),
         "raw_file": raw_path.name,
         "raw_sha256": sha256(raw_path),  # GPKGs embed write times, so only raw is hashed
     }
