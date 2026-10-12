@@ -31,6 +31,7 @@ def test_wgs84_envelope_contains_rd_bbox():
         ("service", True),
         ("primary_link", True),
         ("motorway_link", True),
+        ("busway", True),
         ("track", False),
         ("cycleway", False),
         ("footway", False),
@@ -191,3 +192,25 @@ def test_mark_service_paved():
         (4, "service", None, [(65, -5), (65, 15)]),  # polygon 3 is not paved
     )
     assert mark_service_paved(terrain, ways).tolist() == [True, False, False, False]
+
+
+def test_mark_fietspad_under_way():
+    from backbone.fetch import mark_fietspad_under_way
+
+    wegdeel = gpd.GeoDataFrame(
+        {"functie": ["fietspad", "fietspad", "fietspad", "voetpad"]},
+        geometry=[
+            box(0, 0, 100, 5),  # long path with a road along it
+            box(0, 20, 100, 23),  # long path that a road only crosses
+            box(0, 40, 100, 45),  # long path with a road along only 30%
+            box(0, 60, 100, 65),  # not a cycle path
+        ],
+        crs=28992,
+    )
+    ways = _ways(
+        (1, "residential", None, [(-10, 2.5), (110, 2.5)]),
+        (2, "residential", None, [(50, 10), (50, 30)]),
+        (3, "residential", None, [(-10, 42.5), (30, 42.5)]),
+        (4, "residential", None, [(-10, 62.5), (110, 62.5)]),
+    )
+    assert mark_fietspad_under_way(wegdeel, ways).tolist() == [True, False, False, False]

@@ -12,7 +12,7 @@ The project measures the real-world width of OpenStreetMap (OSM) road segments f
 
 ### Definitions (decisions the human owns)
 
-- **Drivable OSM roads:** `highway` in `motorway`, `trunk`, `primary`, `secondary`, `tertiary`, `unclassified`, `residential`, `service` and their `_link` variants. `track` is excluded (decided 2026-10-12).
+- **Drivable OSM roads:** `highway` in `motorway`, `trunk`, `primary`, `secondary`, `tertiary`, `unclassified`, `residential`, `service`, `busway` and the `_link` variants. `track` is excluded; `busway` is included because BGT `OV-baan` is (decided 2026-10-12).
 - **Excluded OSM ways** (decided 2026-10-12; rules in `src/backbone/fetch.py`):
   - cycleways, footways, pedestrian areas, paths, and `area=yes` highways;
   - parking: `service=parking_aisle|parking`, any `parking=*`, `amenity=parking`;
@@ -21,6 +21,7 @@ The project measures the real-world width of OpenStreetMap (OSM) road segments f
 - **Drivable surface in BGT** (attribute names verified against the BGT catalogue on 2026-10-12):
   - `wegdeel` with `functie` in `rijbaan autosnelweg`, `rijbaan autoweg`, `rijbaan regionale weg`, `rijbaan lokale weg`, `OV-baan` (bus and tram lanes are included), `overweg`, `inrit`, `woonerf`;
   - plus `onbegroeidterreindeel` with `fysiek_voorkomen` `gesloten verharding` or `open verharding`, but only where a kept OSM service way runs through it;
+  - plus `wegdeel` `fietspad` where a kept drivable OSM way runs along it (at least half the polygon's length), e.g. bicycle streets that BGT maps as cycle path; a road that only crosses a cycle path does not count (decided 2026-10-12);
   - only the current version of each BGT object (the PDOK API also returns history).
 - **Width definitions.** Both are measured from BGT; which one is the product is decided after Phase 3:
   - **carriageway width:** drivable surface as defined above;

@@ -30,37 +30,41 @@ Files: `metrics.md` (all tables), `segments.csv` (one row per scored segment),
 - 157 segments (5.3 km) whose cell holds less than 1.5 m of reference width are
   reported separately as "no usable reference".
 
-## Results (2,987 segments, 156 km with usable reference)
+## Results (3,087 segments, 162 km with usable reference)
+
+Updated 2026-10-12 after including `highway=busway` and counting `fietspad`
+under a drivable OSM way as drivable (open issues 1 and 2 below).
 
 | Area type | Segments | km | IoU (length-weighted) | IoU median | Share IoU < 0.5 | Width MAE (m) | Width bias (m) |
 |---|---|---|---|---|---|---|---|
-| city | 1,361 | 70.2 | 0.70 | 0.71 | 17% | 1.12 | -0.57 |
-| suburb | 1,471 | 71.2 | 0.72 | 0.75 | 7% | 1.16 | +0.71 |
-| rural | 155 | 14.6 | 0.64 | 0.77 | 9% | 0.97 | +0.43 |
+| city | 1,419 | 73.8 | 0.71 | 0.71 | 14% | 1.07 | -0.54 |
+| suburb | 1,512 | 73.5 | 0.72 | 0.75 | 7% | 1.17 | +0.73 |
+| rural | 156 | 14.7 | 0.65 | 0.77 | 8% | 0.98 | +0.43 |
 
 | Road class | Segments | km | IoU (length-weighted) | Share IoU < 0.5 | Tag width median | Ref width median | Width bias |
 |---|---|---|---|---|---|---|---|
-| residential | 2,024 | 108.1 | 0.73 | 6% | 6.0 | 4.7 | +0.62 |
-| service | 321 | 11.7 | 0.47 | 51% | 3.0 | 4.8 | -1.77 |
-| unclassified | 245 | 13.3 | 0.62 | 15% | 6.0 | 5.0 | -0.35 |
-| tertiary | 223 | 13.4 | 0.77 | 9% | 6.5 | 6.2 | -0.66 |
-| secondary | 167 | 7.8 | 0.73 | 8% | 3.25 | 5.8 | -0.72 |
-| primary | 6 | 1.6 | 0.64 | 0% | 3.5 | 4.6 | -0.76 |
+| residential | 2,063 | 110.3 | 0.73 | 5% | 6.0 | 4.7 | +0.64 |
+| service | 308 | 11.5 | 0.50 | 46% | 3.0 | 4.6 | -1.55 |
+| busway | 68 | 3.8 | 0.70 | 22% | 3.25 | 6.7 | -1.24 |
+
+Other classes are as in `metrics.md`.
 
 | Width source | Segments | km | IoU (length-weighted) | Width MAE | Width bias |
 |---|---|---|---|---|---|
-| class default | 2,553 | 134.4 | 0.70 | 1.16 | +0.36 |
-| `lanes` | 354 | 17.1 | 0.74 | 1.04 | -0.79 |
-| `width` | 80 | 4.5 | 0.73 | 0.77 | -0.32 |
+| class default | 2,606 | 137.7 | 0.70 | 1.15 | +0.39 |
+| `lanes` | 401 | 19.8 | 0.75 | 1.03 | -0.75 |
+| `width` | 80 | 4.5 | 0.73 | 0.77 | -0.29 |
 
 Medians, except IoU (length-weighted). Bias = tag width - reference width.
+Segments without usable reference: 128 (3.1 km), down from 157 (5.3 km); 88 of
+them are service ways, mostly on BGT `voetpad` and `parkeervlak`.
 
 ## What the gallery shows
 
 The SPEC asks whether failures cluster at wide roads, junctions or missing tags.
 
-- **Service roads and open paved areas dominate.** 64% of the worst 50 are
-  service roads (11% of all segments); 46% have more than 10 m of reference
+- **Service roads and open paved areas dominate.** 37 of the worst 50 are
+  service roads (10% of all segments); 30% have more than 10 m of reference
   width (2% overall). By eye these are industrial yards, bus stations, squares,
   quays and parking lots, where one centreline runs through a wide paved area
   and "width" is not well defined.
@@ -81,20 +85,16 @@ The SPEC asks whether failures cluster at wide roads, junctions or missing tags.
 
 ## Surprises and open issues
 
-1. **Bus-only roads are missing from the OSM set.** BGT drivable includes
-   `OV-baan` (approved), but OSM bus-only roads are `highway=busway`, which is
-   not in the drivable list. Utrecht has 93 busway ways and 42,000 m² of
-   `OV-baan`; only 10 of its 63 `OV-baan` polygons touch a kept OSM way. The
-   rest of that surface leaks into neighbouring segments' references (several
-   of the worst 50). **Decision needed:** add `highway=busway` to the drivable
-   OSM list (scored), or only let busways claim their surface (not scored).
-2. **BGT maps some bicycle streets (fietsstraten) as `fietspad`.** In Houten,
-   66% of the length of segments without reference lies on `fietspad`; 18 of
-   those 59 ways are `cyclestreet=yes`, while 46 other bicycle streets in
-   Houten are mapped as carriageway. These streets look like roads and carry
-   cars. **Decision needed:** count `fietspad` under a drivable OSM way as
-   drivable (like paved terrain under service ways), or leave these segments
-   flagged as "no reference".
+1. **Resolved: bus-only roads.** BGT `OV-baan` is drivable, but OSM
+   `highway=busway` was not in the drivable list, so bus-lane surface leaked
+   into neighbouring segments' references. Busways are now included (68 kept
+   in Utrecht; lane width 3.25 m, an assumption).
+2. **Resolved: bicycle streets mapped as cycle path.** BGT maps some Dutch
+   bicycle streets (fietsstraten) as `fietspad`. A `fietspad` polygon now counts
+   as drivable when a kept OSM way runs along at least half its length (33
+   polygons in Houten, 6 in Benschop, 1 in Utrecht). Checked on 8 cm crops:
+   bicycle streets and the Benschop parallel road are picked up; separate cycle
+   paths beside roads are not.
 3. **The OSM `width` tag did not overestimate.** Despite meaning kerb to kerb,
    tagged widths are 0.3 m *below* the rough reference on median. The rough
    reference includes junction wedges, so Phase 3 should recheck this.

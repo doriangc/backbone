@@ -47,6 +47,12 @@ OSM_SERVICE_MAX_ERF_SHARE = 0.5
 # polygon to count as drivable; avoids ways that only clip a corner or edge.
 SERVICE_PAVED_MIN_OVERLAP_M = 1.0
 SERVICE_PAVED_EDGE_M = 0.5
+# BGT `fietspad` counts as drivable where a kept OSM drivable way runs along it
+# (decided 2026-10-12; e.g. bicycle streets mapped as fietspad). "Along" means
+# the way's length inside the polygon (shrunk by SERVICE_PAVED_EDGE_M) is at
+# least this share of the polygon's length (long side of its minimum rotated
+# rectangle), so a road that only crosses a long cycle path does not count.
+FIETSPAD_ALONG_MIN_SHARE = 0.5
 
 # --- Luchtfoto -------------------------------------------------------------
 LUCHTFOTO_WMS_URL = "https://service.pdok.nl/hwh/luchtfotorgb/wms/v1_0"
@@ -75,6 +81,8 @@ OSM_DRIVABLE_HIGHWAYS = frozenset(
         "unclassified",
         "residential",
         "service",
+        # Bus-only roads: BGT OV-baan is drivable, so OSM busways are too (decided 2026-10-12).
+        "busway",
     }
 )
 OSM_LINK_HIGHWAYS = frozenset({"motorway", "trunk", "primary", "secondary", "tertiary"})
@@ -96,6 +104,7 @@ LANE_WIDTH_M = {
     "unclassified": 3.0,
     "residential": 3.0,
     "service": 3.0,
+    "busway": 3.25,  # assumption, added with busways on 2026-10-12
 }
 # Scoring geometry for the baseline (and later Phase 3 previews).
 EVAL_MARGIN_M = 25.0  # only score inside the area box shrunk by this

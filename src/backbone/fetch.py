@@ -122,13 +122,12 @@ def fetch_bgt_collection(
     return gpd.GeoDataFrame.from_features(features, crs=config.RD_EPSG), raw_path
 
 
-def fetch_bgt(bbox: BBox, out_dir: Path, s: requests.Session) -> dict:
-    out_path = out_dir / "bgt_wegdeel.gpkg"
+def fetch_bgt(bbox: BBox, out_dir: Path, s: requests.Session) -> tuple[gpd.GeoDataFrame, dict]:
+    """Current wegdeel objects; `drivable_class` marks the drivable functie values.
+    The final `drivable` column is set in run(), once OSM is known."""
     all_versions, raw_path = fetch_bgt_collection("wegdeel", bbox, out_dir, s)
     cur = bgt_current(all_versions)
-    cur["drivable"] = cur["functie"].isin(config.BGT_DRIVABLE_FUNCTIES)
-    out_path.unlink(missing_ok=True)
-    cur.to_file(out_path, layer="wegdeel", driver="GPKG")
+    cur["drivable_class"] = cur["functie"].isin(config.BGT_DRIVABLE_FUNCTIES)
 
     unknown = set(cur["functie"]) - config.BGT_DRIVABLE_FUNCTIES - {
         "spoorbaan", "baan voor vliegverkeer", "fietspad", "voetpad",
@@ -136,12 +135,11 @@ def fetch_bgt(bbox: BBox, out_dir: Path, s: requests.Session) -> dict:
     }  # fmt: skip
     if unknown:
         log.warning("BGT functie values outside the codelist: %s", sorted(unknown))
-    return {
+    return cur, {
         "endpoint": f"{config.BGT_API_URL}/collections/wegdeel/items",
         "license": config.BGT_LICENSE,
         "fetched_versions": len(all_versions),
         "current_features": len(cur),
-        "drivable_features": int(cur["drivable"].sum()),
         "functie_counts": cur["functie"].value_counts().to_dict(),
         "max_lv_publicatiedatum": cur["lv_publicatiedatum"].max(),
         "raw_file": raw_path.name,
@@ -186,6 +184,35 @@ def mark_service_paved(terrain: gpd.GeoDataFrame, ways: gpd.GeoDataFrame) -> pd.
     per_poly = pairs.groupby(level=0)["overlap"].sum()
     out[per_poly[per_poly >= config.SERVICE_PAVED_MIN_OVERLAP_M].index] = True
     return out
+
+
+def mark_fietspad_under_way(wegdeel: gpd.GeoDataFrame, ways: gpd.GeoDataFrame) -> pd.Series:
+    """True for `fietspad` polygons that a kept OSM drivable way runs along
+    (see config.FIETSPAD_ALONG_MIN_SHARE)."""
+    paths = wegdeel[wegdeel["functie"] == "fietspad"]
+    out = pd.Series(False, index=wegdeel.index)
+    if paths.empty or ways.empty:
+        return out
+    pairs = gpd.sjoin(paths[["geometry"]], ways[["geometry"]], predicate="intersects")
+    pairs["overlap"] = [
+        paths.geometry[i].buffer(-config.SERVICE_PAVED_EDGE_M).intersection(ways.geometry[j]).length
+        for i, j in zip(pairs.index, pairs["index_right"])
+    ]
+    overlap = pairs.groupby(level=0)["overlap"].sum()
+    length = paths.geometry[overlap.index].map(_long_side)
+    hit = overlap[
+        (overlap >= config.SERVICE_PAVED_MIN_OVERLAP_M)
+        & (overlap >= config.FIETSPAD_ALONG_MIN_SHARE * length)
+    ].index
+    out[hit] = True
+    return out
+
+
+def _long_side(poly) -> float:
+    rect = poly.minimum_rotated_rectangle
+    xs, ys = rect.exterior.coords.xy
+    sides = [((xs[k + 1] - xs[k]) ** 2 + (ys[k + 1] - ys[k]) ** 2) ** 0.5 for k in range(len(xs) - 1)]
+    return max(sides) if sides else 0.0
 
 
 # --- Luchtfoto ---------------------------------------------------------------
@@ -381,9 +408,13 @@ def mark_private_yards(ways: gpd.GeoDataFrame, erf) -> gpd.GeoDataFrame:
 
 
 def fetch_osm(bbox: BBox, out_dir: Path, s: requests.Session, erf) -> tuple[gpd.GeoDataFrame, dict]:
-    raw_path = out_dir / "osm_raw.json.gz"
     out_path = out_dir / "osm_drivable.gpkg"
     query = overpass_query(bbox)
+    # The cache file is keyed by the query, so changing the filter refetches.
+    raw_path = out_dir / f"osm_raw_{hashlib.sha256(query.encode()).hexdigest()[:10]}.json.gz"
+    for stale in out_dir.glob("osm_raw*.json.gz"):
+        if stale != raw_path:
+            stale.unlink()
     if not raw_path.exists():
         r = s.post(config.OVERPASS_URL, data={"data": query}, timeout=360)
         r.raise_for_status()
@@ -433,7 +464,7 @@ def run(name: str, bbox: BBox, force: bool = False) -> Path:
         "run_at": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
     }
     log.info("BGT ...")
-    manifest["bgt"] = fetch_bgt(bbox, out_dir, s)
+    wegdeel, manifest["bgt"] = fetch_bgt(bbox, out_dir, s)
     log.info("BGT terrain ...")
     terrain, manifest["bgt_terrain"] = fetch_bgt_terrain(bbox, out_dir, s)
     log.info("OSM ...")
@@ -444,6 +475,13 @@ def run(name: str, bbox: BBox, force: bool = False) -> Path:
     terrain_path = out_dir / "bgt_onbegroeidterreindeel.gpkg"
     terrain_path.unlink(missing_ok=True)
     terrain.to_file(terrain_path, layer="onbegroeidterreindeel", driver="GPKG")
+    wegdeel["fietspad_under_way"] = mark_fietspad_under_way(wegdeel, ways)
+    wegdeel["drivable"] = wegdeel["drivable_class"] | wegdeel["fietspad_under_way"]
+    manifest["bgt"]["drivable_features"] = int(wegdeel["drivable"].sum())
+    manifest["bgt"]["fietspad_under_way_features"] = int(wegdeel["fietspad_under_way"].sum())
+    wegdeel_path = out_dir / "bgt_wegdeel.gpkg"
+    wegdeel_path.unlink(missing_ok=True)
+    wegdeel.to_file(wegdeel_path, layer="wegdeel", driver="GPKG")
     manifest["luchtfoto"] = {}
     for key in config.LUCHTFOTO_LAYERS:
         log.info("Luchtfoto %s ...", key)
