@@ -1,9 +1,10 @@
 # Phase 3: Ground-truth widths from BGT
 
-Run on 2026-10-12 over `utrecht_centrum`, `houten` and `benschop`:
+Run on 2026-10-12 over the three pilots, then rerun over all 20 areas with the
+kerb-to-kerb depth cap (decision 2026-10-12, see below). Numbers are for all 20.
 
 ```
-uv run python -m backbone.widths --area utrecht_centrum --area houten --area benschop   # ~1 min
+uv run python -m backbone.widths --area utrecht_centrum --area houten ...   # one --area per area, ~15 min for 20
 ```
 
 Files: `metrics.md` (all tables), `segments.csv` (one row per segment, with
@@ -22,7 +23,10 @@ Per-profile data: `data/<area>/widths.gpkg`, layers `profiles` and `segments`.
   2026-10-12), parking / cycle path (kerb-to-kerb only), other.
 - **Carriageway width:** walk out from the centreline through carriageway and
   stop at the first other class (slivers < 5 cm ignored).
-  **Kerb-to-kerb:** the same, but also through parking and cycle path.
+  **Kerb-to-kerb:** the same, but also through parking and cycle path, and
+  only through runs of those up to 3 m deep along the profile. Deeper runs are
+  perpendicular or angled parking bays, so kerb-to-kerb stops at the
+  carriageway edge there (decided 2026-10-12).
 - **Off-road OSM line:** if the line is not on carriageway, the nearest
   carriageway within 5 m is used (one side can then be negative).
 - **Parallel roads:** profiles stop at the segment's nearest-centreline cell
@@ -31,44 +35,53 @@ Per-profile data: `data/<area>/widths.gpkg`, layers `profiles` and `segments`.
   a junction node are excluded; 2 m where only driveways or alleys join.
 - **Levels:** a segment is measured on the BGT level matching its OSM `layer`
   where BGT has surface at that level, else on ground level.
-- A segment is scored with at least 3 usable profiles.
+- A segment is scored with at least 3 usable profiles. Segments whose
+  carriageway width varies (spread flag) keep their per-profile distribution in
+  `widths.gpkg`, and the median is their width (decided 2026-10-12).
 
 ## Coverage
 
-3,216 segments (181 km) have profiles inside the scoring box; **2,377 (170 km)
-are scored**. Not scored: 553 junction-only segments (5.6 km, median 8 m long)
-and 286 with fewer than 3 usable profiles (5.9 km).
+19,972 segments (1,238 km) have profiles inside the scoring box; **14,188
+(1,149 km) are scored**. Not scored: 3,690 junction-only segments (38 km,
+median 8 m long) and 2,094 with fewer than 3 usable profiles (51 km).
 
 | Flag | Segments | km | Meaning |
 |---|---|---|---|
-| spread | 626 | 49.9 | p90 - p10 of carriageway width > 1.5 m |
-| cell_limited | 162 | 9.9 | > 50% of profiles stopped by a neighbouring centreline |
-| offset | 45 | 4.2 | OSM line mostly off the carriageway |
+| spread | 3,456 | 264.3 | p90 - p10 of carriageway width > 1.5 m |
+| cell_limited | 1,451 | 68.4 | > 50% of profiles stopped by a neighbouring centreline |
+| offset | 364 | 25.3 | OSM line mostly off the carriageway |
 
-Only 1.8% of usable profiles start off the carriageway, but OSM lines are
-rarely centred: the median |left - right| is 0.56 m.
+Only 2.0% of usable profiles start off the carriageway, but OSM lines are
+rarely centred: the median |left - right| is 0.61 m.
 
-## True widths and baseline errors (2,377 scored segments)
+## True widths and baseline errors (14,188 scored segments)
 
-Median true width: carriageway 4.75 m, kerb-to-kerb 5.80 m.
+Median true width: carriageway 4.99 m, kerb-to-kerb 5.61 m. 18% of profile
+sides extend beyond the carriageway (median 1.9 m, a parallel parking lane or
+cycle path). After the 3 m cap, 0.7% extend more than 3 m, through two shallow
+runs in a row.
 
 | Baseline (vs carriageway) | MAE (m) | Within 0.5 m | Bias (m) | MAE city / suburb / rural |
 |---|---|---|---|---|
-| B0: tags, else class defaults | 1.40 | 27% | +0.16 | 1.38 / 1.44 / 1.31 |
-| B1: class median from other areas | 1.35 | 28% | -0.21 | 1.52 / 1.22 / 1.14 |
-| **B2: tags, else B1** | **1.27** | **29%** | -0.30 | 1.42 / 1.15 / 1.15 |
+| B0: tags, else class defaults | 1.40 | 29% | -0.04 | 1.41 / 1.39 / 1.41 |
+| B1: class median from other areas | 1.37 | 28% | -0.01 | 1.58 / 1.17 / 1.12 |
+| **B2: tags, else B1** | **1.22** | **33%** | -0.11 | 1.37 / 1.07 / 1.07 |
 
-B1 helps residential (MAE 1.22 -> 1.12) and service (3.03 -> 2.39) but hurts
-classes where `lanes` tags carry information (secondary 1.21 -> 1.82).
-B2 keeps both; it is the bar the imagery method has to beat in Phase 5.
+B1 helps where defaults are poor: residential (MAE 1.16 -> 1.03) and service
+(3.12 -> 2.22). It hurts where `lanes` tags carry information: secondary
+1.30 -> 1.91, primary 1.36 -> 2.25. B2 keeps both, and it is the bar the
+imagery method has to beat in Phase 5. The hardest classes for B2 are
+motorway (3.42 m; hard shoulders), service (2.20 m) and busway (1.85 m).
 
-Against kerb-to-kerb, all baselines are worse (MAE 2.3-2.6 m), mostly because
-defaults ignore parking.
+B1 is the leave-one-area-out per-class median, so with 20 areas it is no
+longer tuned on 2 neighbours. Against kerb-to-kerb, all baselines are worse
+(MAE 1.6-1.8 m), mostly because defaults ignore parking.
 
 ## Checked on the overlays
 
-The 50 random segments look right: carriageway edges sit on kerbs and parking
-bay lines, kerb-to-kerb continues through parallel parking, `inrit` polygons
+Pilot run and 20-area rerun. The 50 random segments look right: carriageway edges sit on kerbs and parking
+bay lines, kerb-to-kerb continues through parallel parking and stops at perpendicular
+bays, `inrit` polygons
 stop profiles, curves and roundabouts measure cleanly.
 
 The 20 spread-flagged segments, by eye: about half are real variation (bus
@@ -81,21 +94,22 @@ Medians absorb most of these.
 
 ## Surprises and open issues
 
-1. **The OSM `width` tag matches carriageway, not kerb-to-kerb, in these
-   areas.** 66 width-tagged segments: MAE 0.77 m, bias -0.08 m against
-   carriageway; MAE 1.76 m, bias -1.08 m against kerb-to-kerb. Dutch mappers
+1. **The OSM `width` tag matches carriageway, not kerb-to-kerb.** Over 471
+   width-tagged segments in 20 areas: MAE 0.63 m, bias -0.07 m against
+   carriageway; MAE 1.25 m, bias -0.52 m against kerb-to-kerb. Dutch mappers
    appear to tag carriageway width, contrary to the OSM wiki definition.
-2. **Perpendicular parking inflates kerb-to-kerb.** 24% of profile sides
-   extend beyond the carriageway (median 2.0 m, a parallel parking lane), but
-   8% extend more than 3 m (up to 5 m): perpendicular or angled bays, which the
-   OSM definition of width excludes. **Decision needed:** stop kerb-to-kerb at
-   parking or cycle-path runs deeper than 3 m along the profile, or keep it.
-3. **Spread-flagged segments (626, 50 km).** **Decision needed (SPEC step 9):**
-   split them, or keep the stored per-profile distribution and use the median.
-   Recommendation: keep the distribution and median for now; splitting at width
-   changes can be added later from the stored profiles without re-measuring.
-4. **Parameters for approval (SPEC acceptance):** spacing 2 m, offset search
-   5 m, junction exclusion = half the widest other road's tag width + 3 m (2 m
-   at driveways), spread threshold 1.5 m. The overlays support keeping them.
-5. Junction-only segments (553, short stubs) get no width. They are 3% of
+2. **Resolved: perpendicular parking.** Kerb-to-kerb now stops at parking or
+   cycle-path runs deeper than 3 m (`profiles.DEFINITIONS["kerb"]`). Median
+   kerb-to-kerb fell from 5.80 to 5.61 m. Unit test
+   `test_kerb_stops_at_deep_parking_bays`.
+3. **Resolved: spread-flagged segments** (3,456, 264 km) keep their
+   distribution and use the median.
+4. **Approved parameters:** spacing 2 m, offset search 5 m, junction
+   exclusion = half the widest other road's tag width + 3 m (2 m at
+   driveways), spread threshold 1.5 m.
+5. Junction-only segments (3,690, short stubs) get no width. They are 3% of
    length; Phase 9 can give them the width of their neighbours.
+6. **Motorways** (21 segments, 11 km) measure 11.5 m of carriageway against a
+   7 m tag default. BGT `rijbaan autosnelweg` includes the hard shoulder,
+   which is paved and drivable by the definition. Whether a width product
+   should include it is open; the measurement is consistent with BGT.

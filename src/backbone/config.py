@@ -121,5 +121,6 @@ GAP_TOL_M = 0.05  # polygon slivers along a profile shorter than this are ignore
 JUNCTION_MARGIN_M = 3.0  # exclusion = widest other road's half tag width + this
 MINOR_JUNCTION_M = 2.0  # exclusion where only minor service ways join
 MINOR_SERVICE = frozenset({"driveway", "alley", "drive-through", "emergency_access"})
+KERB_EXT_MAX_DEPTH_M = 3.0  # deeper parking / cycle-path runs stop kerb-to-kerb
 SPREAD_FLAG_M = 1.5  # p90 - p10 of total carriageway width
 MIN_USABLE_PROFILES = 3

@@ -1,36 +1,85 @@
-# Phase 1: Data acquisition, three pilot areas
+# Phase 1: Data acquisition, 20 areas
 
-Run on 2026-10-12. Boxes in EPSG:28992, 2 x 2 km each (`src/backbone/areas.py`):
+Run on 2026-10-12: three pilot areas, then 17 more after the decision to scale
+up to 20 (7 city, 7 suburb, 6 rural). Boxes in EPSG:28992, 2 x 2 km each
+(`src/backbone/areas.py`). Pilot characters:
 
-| Area | Type | Box | Character |
-|---|---|---|---|
-| `utrecht_centrum` | city | `135900,454900,137900,456900` | old town, singels, station area, ring roads |
-| `houten` | suburb | `139000,448100,141000,450100` | residential loops and cul-de-sacs, ring road with roundabouts, business park |
-| `benschop` | rural | `126400,445400,128400,447400` | ribbon village on a dike road, polder roads, provincial road with parallel road |
+| Area | Type | Character |
+|---|---|---|
+| `utrecht_centrum` | city | old town, singels, station area, ring roads |
+| `houten` | suburb | residential loops and cul-de-sacs, ring road with roundabouts, business park |
+| `benschop` | rural | ribbon village on a dike road, polder roads, provincial road with parallel road |
 
-Place names were checked against BGT `wijk` (Houten Noord-West) and BAG
-`woonplaats` (Benschop).
+The 17 added areas spread over the country: city centres of Amsterdam,
+Rotterdam, Den Haag, Groningen, Maastricht and Eindhoven; post-1970 suburbs in
+Almere, Zoetermeer, Amersfoort, Apeldoorn, Breda and Zwolle; villages and
+countryside in Friesland (Wommels), Zeeland (Kapelle), Drenthe (Westerbork),
+Zuid-Limburg (Gulpen, hilly) and the Achterhoek (Aalten). Place names were
+checked against BGT `wijk` and BAG `woonplaats`. Two first picks were replaced
+after looking at them: a Breda box that was industrial, and an Aalten box that
+was mostly town. The added areas have no hand-picked crops. `qa.auto_crops`
+renders the centre plus the midpoint of the longest way of each of the two most
+common road classes.
 
 ```
 uv sync
-uv run python -m backbone.fetch --area <area>   # ~4-5 min, ~300 MB in data/<area>/
+uv run python -m backbone.fetch --area <area>   # ~4-9 min, 150-350 MB in data/<area>/
 uv run python -m backbone.qa --area <area>      # ~1 min, writes reports/phase1/<area>/
 uv run --group dev pytest
 ```
 
 ## Per-area summary
 
-| Area | BGT wegdeel current (drivable) | OSM ways kept / excluded | Median share of OSM length on drivable label: non-service / service | 8 cm offset: median dx, dy / worst (windows used) | 25 cm offset: median dx, dy / worst |
-|---|---|---|---|---|---|
-| `utrecht_centrum` | 10,260 (2,861) | 1,068 / 253 | 1.00 / 0.85 | +0.00, +0.16 / 0.36 m (16/16) | +0.00, +0.12 / 2.06 m |
-| `houten` | 8,189 (2,302) | 1,071 / 265 | 1.00 / 1.00 | +0.00, +0.16 / 0.23 m (16/16) | +0.00, +0.00 / 0.35 m |
-| `benschop` | 1,049 (471) | 110 / 29 | 1.00 / 0.97 | +0.00, +0.16 / 1.79 m (11/16) | +0.25, -0.25 / 0.79 m |
+| Area | Type | Box | BGT wegdeel current (drivable) | OSM ways kept / excluded | 8 cm offset: median dx, dy / worst (windows) | 25 cm offset: median dx, dy / worst |
+|---|---|---|---|---|---|---|
+| `utrecht_centrum` | city | `135900,454900,137900,456900` | 10,260 (2,862) | 1,136 / 276 | +0.00, +0.16 / 0.36 m (16/16) | +0.00, +0.12 / 2.06 m (16/16) |
+| `houten` | suburb | `139000,448100,141000,450100` | 8,189 (2,335) | 1,072 / 265 | +0.00, +0.16 / 0.23 m (16/16) | +0.00, +0.00 / 0.35 m (16/16) |
+| `benschop` | rural | `126400,445400,128400,447400` | 1,049 (477) | 110 / 29 | +0.00, +0.16 / 1.79 m (11/16) | +0.25, -0.25 / 0.79 m (11/16) |
+| `amsterdam_centrum` | city | `120400,486300,122400,488300` | 8,379 (1,970) | 1,400 / 44 | +0.00, +0.08 / 1.63 m (16/16) | +0.00, +0.00 / 2.02 m (16/16) |
+| `rotterdam_centrum` | city | `91600,436300,93600,438300` | 12,218 (1,903) | 1,187 / 267 | +0.00, +0.00 / 0.64 m (16/16) | -0.25, +0.00 / 2.02 m (16/16) |
+| `den_haag_centrum` | city | `80300,454000,82300,456000` | 10,299 (2,086) | 1,251 / 347 | +0.08, +0.00 / 1.28 m (16/16) | +0.00, +0.50 / 1.58 m (16/16) |
+| `groningen_centrum` | city | `232900,581000,234900,583000` | 6,324 (1,873) | 1,180 / 236 | +0.00, +0.16 / 0.32 m (16/16) | +0.00, +0.25 / 2.06 m (16/16) |
+| `maastricht_centrum` | city | `175400,317000,177400,319000` | 5,629 (1,507) | 1,065 / 185 | +0.00, +0.08 / 0.23 m (16/16) | +0.00, +0.25 / 0.56 m (16/16) |
+| `eindhoven_centrum` | city | `160300,382300,162300,384300` | 8,404 (1,787) | 1,300 / 339 | +0.00, +0.08 / 0.23 m (16/16) | +0.25, +0.25 / 0.35 m (16/16) |
+| `almere_buiten` | suburb | `145700,488400,147700,490400` | 10,386 (2,113) | 590 / 144 | +0.00, +0.00 / 0.23 m (16/16) | +0.00, +0.00 / 0.25 m (16/16) |
+| `zoetermeer` | suburb | `92500,451500,94500,453500` | 6,666 (1,614) | 1,011 / 353 | +0.00, +0.16 / 0.23 m (16/16) | +0.25, +0.00 / 0.35 m (16/16) |
+| `amersfoort_vathorst` | suburb | `156900,466400,158900,468400` | 5,563 (1,932) | 715 / 180 | +0.00, +0.00 / 0.80 m (16/16) | +0.00, +0.00 / 0.50 m (16/16) |
+| `apeldoorn_zuid` | suburb | `193200,466000,195200,468000` | 6,629 (3,255) | 547 / 131 | +0.08, +0.16 / 0.36 m (16/16) | +0.00, +0.00 / 0.35 m (16/16) |
+| `breda_haagse_beemden` | suburb | `108800,402400,110800,404400` | 5,819 (1,852) | 398 / 53 | +0.00, +0.00 / 0.32 m (16/16) | +0.00, -0.25 / 0.56 m (16/16) |
+| `zwolle_stadshagen` | suburb | `199700,503900,201700,505900` | 4,950 (1,465) | 753 / 84 | +0.00, +0.16 / 0.32 m (16/16) | +0.00, -0.25 / 0.50 m (16/16) |
+| `wommels` | rural | `167600,568300,169600,570300` | 1,311 (716) | 212 / 41 | +0.00, +0.16 / 0.23 m (13/16) | +0.00, +0.00 / 0.35 m (13/16) |
+| `kapelle` | rural | `54100,386800,56100,388800` | 1,049 (466) | 221 / 29 | +0.00, +0.00 / 2.08 m (15/16) | +0.00, +0.00 / 1.03 m (15/16) |
+| `westerbork` | rural | `236400,540000,238400,542000` | 1,967 (1,379) | 332 / 502 | +0.08, +0.16 / 1.82 m (16/16) | -0.25, +0.00 / 0.56 m (16/16) |
+| `gulpen` | rural | `189400,312500,191400,314500` | 2,896 (1,347) | 403 / 70 | +0.00, +0.00 / 2.00 m (16/16) | +0.00, +0.00 / 1.03 m (16/16) |
+| `aalten_buitengebied` | rural | `237400,440500,239400,442500` | 349 (289) | 55 / 8 | +0.00, +0.16 / 2.50 m (16/16) | +0.00, +0.00 / 2.66 m (15/16) |
 
 Alignment windows with fewer than 5,000 BGT edge pixels (fields only) are
-skipped. The 1.79 m Benschop window holds a single straight provincial road:
-the shift is almost entirely along the road (cross-road component about
-0.2 m), which a single straight road cannot constrain. An 8 cm crop shows
-BGT on the visible asphalt.
+skipped. Blank (white or black) imagery is at most 0.2% per area.
+
+**Worst-window offsets above 1 m** fall into two groups, checked on 8 cm crops:
+- **Rural, few edges** (Benschop 1.79, Kapelle 2.08, Westerbork 1.82, Gulpen
+  2.00, Aalten 2.50 m). Edge counts are 6,900-31,000 pixels against
+  120,000-300,000 in cities. These windows hold one straight road or none:
+  Benschop's shift is almost entirely along the road (cross-road component
+  about 0.2 m), and the Aalten window is a ploughed field whose furrows
+  dominate the gradient.
+- **City centres, roof lean** (Amsterdam 1.63, Den Haag 1.28 m at 8 cm; most
+  city windows at 25 cm). In the Amsterdam window the BGT road edges sit on the
+  kerbs, but roofs are displaced 1-2 m from the BGT building footprints: the
+  imagery is not a true orthophoto, and BGT's outer road boundaries follow the
+  facades.
+
+Medians are 0.00-0.16 m everywhere (one to two 8 cm pixels), so there is no
+systematic offset. Building lean matters for Phase 4: near tall buildings,
+image roof edges can sit 1-2 m from the BGT outlines that border the
+pavement.
+
+**Westerbork excludes more OSM ways than it keeps** (502 vs 332). 473 are
+service ways on BGT `erf`, 384 of them tagged `service=driveway`: local mappers
+drew every private driveway. This is the private-yard rule working as intended.
+
+Across all 20 areas, `calamiteitendoorsteek` occurs in none, `woonerf` 180
+times, `OV-baan` 637, `overweg` 119 and `inrit` 6,836 times.
 
 The detailed numbers below are for `utrecht_centrum`.
 
@@ -149,8 +198,9 @@ kerbs on the visible kerbs and OSM centrelines inside the carriageways.
    market square in `crop_market_square.jpg` and the square in the top left of
    `crop_pausdam.jpg`, with no OSM drivable way on them. These will show up as
    unmatched polygons in Phase 3.
-6. `calamiteitendoorsteek` occurs in none of the three areas and `woonerf`
-   only once (Houten), so their handling is barely tested.
+6. `calamiteitendoorsteek` occurs in none of the 20 areas, so its handling
+   is untested. `woonerf` was rare in the pilots (once, in Houten) but occurs
+   180 times across the 20 areas.
 7. **OSM and BGT disagree on some rural parallel roads.** Benschop's
    Ingenieur F E D Enschedeweg parallel road is OSM `unclassified`
    (`agricultural=yes`, `bicycle=yes`, 60 km/h) but BGT `fietspad`. Phase 3

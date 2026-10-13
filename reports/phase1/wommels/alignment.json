@@ -1,0 +1,436 @@
+{
+  "8cm": {
+    "analysis_pixel_m": 0.16,
+    "median_dx_m": 0.0,
+    "median_dy_m": 0.16,
+    "max_abs_shift_m": 0.2262741699796952,
+    "windows_used": 13,
+    "windows": [
+      {
+        "dx_m": 0.0,
+        "dy_m": 0.16,
+        "pixel_m": 0.16,
+        "peak_over_zero": 1.0596,
+        "edge_pixels": 49022,
+        "window": [
+          167600.0,
+          568300.0,
+          168100.0,
+          568800.0
+        ]
+      },
+      {
+        "dx_m": 0.0,
+        "dy_m": 0.16,
+        "pixel_m": 0.16,
+        "peak_over_zero": 1.0433,
+        "edge_pixels": 66684,
+        "window": [
+          168100.0,
+          568300.0,
+          168600.0,
+          568800.0
+        ]
+      },
+      {
+        "dx_m": null,
+        "dy_m": null,
+        "pixel_m": 0.16,
+        "peak_over_zero": null,
+        "edge_pixels": 3445,
+        "window": [
+          168600.0,
+          568300.0,
+          169100.0,
+          568800.0
+        ]
+      },
+      {
+        "dx_m": 0.0,
+        "dy_m": 0.16,
+        "pixel_m": 0.16,
+        "peak_over_zero": 1.0111,
+        "edge_pixels": 28391,
+        "window": [
+          169100.0,
+          568300.0,
+          169600.0,
+          568800.0
+        ]
+      },
+      {
+        "dx_m": 0.0,
+        "dy_m": 0.0,
+        "pixel_m": 0.16,
+        "peak_over_zero": 1.0,
+        "edge_pixels": 85185,
+        "window": [
+          167600.0,
+          568800.0,
+          168100.0,
+          569300.0
+        ]
+      },
+      {
+        "dx_m": 0.0,
+        "dy_m": 0.16,
+        "pixel_m": 0.16,
+        "peak_over_zero": 1.0127,
+        "edge_pixels": 155685,
+        "window": [
+          168100.0,
+          568800.0,
+          168600.0,
+          569300.0
+        ]
+      },
+      {
+        "dx_m": 0.0,
+        "dy_m": 0.16,
+        "pixel_m": 0.16,
+        "peak_over_zero": 1.008,
+        "edge_pixels": 148061,
+        "window": [
+          168600.0,
+          568800.0,
+          169100.0,
+          569300.0
+        ]
+      },
+      {
+        "dx_m": 0.0,
+        "dy_m": 0.16,
+        "pixel_m": 0.16,
+        "peak_over_zero": 1.007,
+        "edge_pixels": 26220,
+        "window": [
+          169100.0,
+          568800.0,
+          169600.0,
+          569300.0
+        ]
+      },
+      {
+        "dx_m": 0.0,
+        "dy_m": 0.0,
+        "pixel_m": 0.16,
+        "peak_over_zero": 1.0,
+        "edge_pixels": 18093,
+        "window": [
+          167600.0,
+          569300.0,
+          168100.0,
+          569800.0
+        ]
+      },
+      {
+        "dx_m": 0.0,
+        "dy_m": 0.16,
+        "pixel_m": 0.16,
+        "peak_over_zero": 1.0387,
+        "edge_pixels": 39351,
+        "window": [
+          168100.0,
+          569300.0,
+          168600.0,
+          569800.0
+        ]
+      },
+      {
+        "dx_m": 0.0,
+        "dy_m": 0.0,
+        "pixel_m": 0.16,
+        "peak_over_zero": 1.0,
+        "edge_pixels": 57032,
+        "window": [
+          168600.0,
+          569300.0,
+          169100.0,
+          569800.0
+        ]
+      },
+      {
+        "dx_m": null,
+        "dy_m": null,
+        "pixel_m": 0.16,
+        "peak_over_zero": null,
+        "edge_pixels": 4998,
+        "window": [
+          169100.0,
+          569300.0,
+          169600.0,
+          569800.0
+        ]
+      },
+      {
+        "dx_m": 0.0,
+        "dy_m": 0.0,
+        "pixel_m": 0.16,
+        "peak_over_zero": 1.0,
+        "edge_pixels": 12914,
+        "window": [
+          167600.0,
+          569800.0,
+          168100.0,
+          570300.0
+        ]
+      },
+      {
+        "dx_m": -0.16,
+        "dy_m": 0.16,
+        "pixel_m": 0.16,
+        "peak_over_zero": 1.1181,
+        "edge_pixels": 19840,
+        "window": [
+          168100.0,
+          569800.0,
+          168600.0,
+          570300.0
+        ]
+      },
+      {
+        "dx_m": 0.0,
+        "dy_m": 0.16,
+        "pixel_m": 0.16,
+        "peak_over_zero": 1.0438,
+        "edge_pixels": 48203,
+        "window": [
+          168600.0,
+          569800.0,
+          169100.0,
+          570300.0
+        ]
+      },
+      {
+        "dx_m": null,
+        "dy_m": null,
+        "pixel_m": 0.16,
+        "peak_over_zero": null,
+        "edge_pixels": 2894,
+        "window": [
+          169100.0,
+          569800.0,
+          169600.0,
+          570300.0
+        ]
+      }
+    ]
+  },
+  "25cm": {
+    "analysis_pixel_m": 0.25,
+    "median_dx_m": 0.0,
+    "median_dy_m": 0.0,
+    "max_abs_shift_m": 0.3535533905932738,
+    "windows_used": 13,
+    "windows": [
+      {
+        "dx_m": -0.25,
+        "dy_m": 0.0,
+        "pixel_m": 0.25,
+        "peak_over_zero": 1.0574,
+        "edge_pixels": 31235,
+        "window": [
+          167600.0,
+          568300.0,
+          168100.0,
+          568800.0
+        ]
+      },
+      {
+        "dx_m": 0.0,
+        "dy_m": 0.0,
+        "pixel_m": 0.25,
+        "peak_over_zero": 1.0,
+        "edge_pixels": 42490,
+        "window": [
+          168100.0,
+          568300.0,
+          168600.0,
+          568800.0
+        ]
+      },
+      {
+        "dx_m": null,
+        "dy_m": null,
+        "pixel_m": 0.25,
+        "peak_over_zero": null,
+        "edge_pixels": 2183,
+        "window": [
+          168600.0,
+          568300.0,
+          169100.0,
+          568800.0
+        ]
+      },
+      {
+        "dx_m": -0.25,
+        "dy_m": -0.25,
+        "pixel_m": 0.25,
+        "peak_over_zero": 1.0538,
+        "edge_pixels": 18143,
+        "window": [
+          169100.0,
+          568300.0,
+          169600.0,
+          568800.0
+        ]
+      },
+      {
+        "dx_m": 0.0,
+        "dy_m": 0.0,
+        "pixel_m": 0.25,
+        "peak_over_zero": 1.0,
+        "edge_pixels": 54226,
+        "window": [
+          167600.0,
+          568800.0,
+          168100.0,
+          569300.0
+        ]
+      },
+      {
+        "dx_m": 0.0,
+        "dy_m": 0.0,
+        "pixel_m": 0.25,
+        "peak_over_zero": 1.0,
+        "edge_pixels": 98960,
+        "window": [
+          168100.0,
+          568800.0,
+          168600.0,
+          569300.0
+        ]
+      },
+      {
+        "dx_m": -0.25,
+        "dy_m": 0.0,
+        "pixel_m": 0.25,
+        "peak_over_zero": 1.0465,
+        "edge_pixels": 94339,
+        "window": [
+          168600.0,
+          568800.0,
+          169100.0,
+          569300.0
+        ]
+      },
+      {
+        "dx_m": 0.0,
+        "dy_m": -0.25,
+        "pixel_m": 0.25,
+        "peak_over_zero": 1.0265,
+        "edge_pixels": 16713,
+        "window": [
+          169100.0,
+          568800.0,
+          169600.0,
+          569300.0
+        ]
+      },
+      {
+        "dx_m": 0.0,
+        "dy_m": -0.25,
+        "pixel_m": 0.25,
+        "peak_over_zero": 1.0324,
+        "edge_pixels": 11512,
+        "window": [
+          167600.0,
+          569300.0,
+          168100.0,
+          569800.0
+        ]
+      },
+      {
+        "dx_m": -0.25,
+        "dy_m": 0.0,
+        "pixel_m": 0.25,
+        "peak_over_zero": 1.0289,
+        "edge_pixels": 25100,
+        "window": [
+          168100.0,
+          569300.0,
+          168600.0,
+          569800.0
+        ]
+      },
+      {
+        "dx_m": -0.25,
+        "dy_m": -0.25,
+        "pixel_m": 0.25,
+        "peak_over_zero": 1.0383,
+        "edge_pixels": 36323,
+        "window": [
+          168600.0,
+          569300.0,
+          169100.0,
+          569800.0
+        ]
+      },
+      {
+        "dx_m": null,
+        "dy_m": null,
+        "pixel_m": 0.25,
+        "peak_over_zero": null,
+        "edge_pixels": 3192,
+        "window": [
+          169100.0,
+          569300.0,
+          169600.0,
+          569800.0
+        ]
+      },
+      {
+        "dx_m": 0.0,
+        "dy_m": -0.25,
+        "pixel_m": 0.25,
+        "peak_over_zero": 1.165,
+        "edge_pixels": 8252,
+        "window": [
+          167600.0,
+          569800.0,
+          168100.0,
+          570300.0
+        ]
+      },
+      {
+        "dx_m": -0.25,
+        "dy_m": 0.25,
+        "pixel_m": 0.25,
+        "peak_over_zero": 1.2185,
+        "edge_pixels": 12669,
+        "window": [
+          168100.0,
+          569800.0,
+          168600.0,
+          570300.0
+        ]
+      },
+      {
+        "dx_m": 0.0,
+        "dy_m": 0.0,
+        "pixel_m": 0.25,
+        "peak_over_zero": 1.0,
+        "edge_pixels": 30750,
+        "window": [
+          168600.0,
+          569800.0,
+          169100.0,
+          570300.0
+        ]
+      },
+      {
+        "dx_m": null,
+        "dy_m": null,
+        "pixel_m": 0.25,
+        "peak_over_zero": null,
+        "edge_pixels": 1847,
+        "window": [
+          169100.0,
+          569800.0,
+          169600.0,
+          570300.0
+        ]
+      }
+    ]
+  }
+}

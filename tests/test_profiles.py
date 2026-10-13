@@ -11,7 +11,8 @@ from backbone.profiles import (
     CARRIAGEWAY,
     DEFINITIONS,
     INRIT,
-    KERB_EXT,
+    CYCLE,
+    PARKING,
     cell_interval,
     junction_distances,
     make_profiles,
@@ -86,9 +87,9 @@ def test_first_edge_stops_at_footpath_and_inrit():
 def test_kerb_to_kerb_walks_through_parking_and_cycle_path():
     surf = _surface(
         (box(-100, -3, 200, 3), CARRIAGEWAY),
-        (box(-100, 3, 200, 5), KERB_EXT),  # parking bay
-        (box(-100, 5, 200, 7), KERB_EXT),  # cycle path, adjacent
-        (box(-100, -5, 200, -4), KERB_EXT),  # cycle path behind a 1 m verge
+        (box(-100, 3, 200, 5), PARKING),  # parallel parking lane, 2 m
+        (box(-100, 5, 200, 7), CYCLE),  # cycle path, adjacent
+        (box(-100, -5, 200, -4), CYCLE),  # cycle path behind a 1 m verge
     )
     _, cw = _measure_all({"a": LineString([(0, 0), (100, 0)])}, surf, "carriageway")
     _, kb = _measure_all({"a": LineString([(0, 0), (100, 0)])}, surf, "kerb")
@@ -165,7 +166,7 @@ def test_raster_and_vector_agree_within_a_pixel():
     res = 0.25
     polys = [
         (box(-50, -3.3, 150, 2.7), CARRIAGEWAY),
-        (box(-50, 2.7, 150, 4.9), KERB_EXT),
+        (box(-50, 2.7, 150, 4.9), PARKING),
         (box(30, -6.1, 45, -3.3), INRIT),
     ]
     centre = Point(50, 0)
@@ -186,3 +187,16 @@ def test_raster_and_vector_agree_within_a_pixel():
             mr = measure(r, DEFINITIONS[d], 5.0, 0.0)
             assert mr["left"] == pytest.approx(mv["left"], abs=res)
             assert mr["right"] == pytest.approx(mv["right"], abs=res)
+
+
+def test_kerb_stops_at_deep_parking_bays():
+    # Perpendicular bays 5 m deep on the left: kerb-to-kerb stops at the carriageway edge.
+    surf = _surface((box(-100, -3, 200, 3), CARRIAGEWAY), (box(-100, 3, 200, 8), PARKING))
+    _, kb = _measure_all({"a": LineString([(0, 0), (100, 0)])}, surf, "kerb")
+    assert kb[0]["left"] == pytest.approx(3)
+    # Two shallow runs of different classes in a row are both kept.
+    surf = _surface(
+        (box(-100, -3, 200, 3), CARRIAGEWAY), (box(-100, 3, 200, 5.5), PARKING), (box(-100, 5.5, 200, 8), CYCLE)
+    )
+    _, kb = _measure_all({"a": LineString([(0, 0), (100, 0)])}, surf, "kerb")
+    assert kb[0]["left"] == pytest.approx(8)

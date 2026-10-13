@@ -33,7 +33,11 @@ from backbone.areas import AREAS, BBox  # noqa: E402
 from backbone.baseline import eval_box, load_segments, segment_cells  # noqa: E402
 from backbone.fetch import DATA_DIR  # noqa: E402
 from backbone.profiles import (  # noqa: E402
+    CARRIAGEWAY,
+    CYCLE,
     DEFINITIONS,
+    INRIT,
+    PARKING,
     build_surface,
     cell_interval,
     junction_distances,
@@ -81,8 +85,8 @@ def run_area(name: str) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
         if not inside[k]:
             continue
         row = {"seg": prof.seg[k], "s": prof.s[k], "junction": bool(junction[k])}
-        for d, allowed in DEFINITIONS.items():
-            m = measure(runs[k], allowed, config.OFFSET_SEARCH_M, config.GAP_TOL_M, stop=tuple(stops[k]))
+        for d, definition in DEFINITIONS.items():
+            m = measure(runs[k], definition, config.OFFSET_SEARCH_M, config.GAP_TOL_M, stop=tuple(stops[k]))
             row[f"{d}_left"], row[f"{d}_right"] = m["left"], m["right"]
             row[f"{d}_cell_stop"] = m["cell_stop"]
             if d == "carriageway":
@@ -207,9 +211,9 @@ def render_segments(sel: pd.DataFrame, profiles: dict, prefix: str, title: str, 
             img, (l, b, rr, t) = read_rgb(DATA_DIR / area / "luchtfoto_8cm.tif", bb, max_px=800)
             ax.imshow(img, extent=(l, rr, b, t))
             local = surf.cx[l:rr, b:t]
-            local[local["cls"] == 3].plot(ax=ax, color="#ffb000", alpha=0.25)
-            local[local["cls"] == 2].plot(ax=ax, color="#b04cff", alpha=0.35)
-            local[local["cls"] == 1].boundary.plot(ax=ax, color="#ff5050", lw=0.6)
+            local[local["cls"] == CARRIAGEWAY].plot(ax=ax, color="#ffb000", alpha=0.25)
+            local[local["cls"] == INRIT].plot(ax=ax, color="#b04cff", alpha=0.35)
+            local[local["cls"].isin([PARKING, CYCLE])].boundary.plot(ax=ax, color="#ff5050", lw=0.6)
             gpd.GeoSeries([g]).plot(ax=ax, color="#00e5ff", lw=1.5)
             pr = profiles[area]
             pr = pr[pr["segment_id"] == r["segment_id"]]

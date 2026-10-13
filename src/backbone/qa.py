@@ -20,6 +20,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
+import shapely  # noqa: E402
 import rasterio  # noqa: E402
 from matplotlib.lines import Line2D  # noqa: E402
 from matplotlib.patches import Patch  # noqa: E402
@@ -253,6 +254,23 @@ def run(name: str, bbox: BBox, crops) -> Path:
     return out_dir
 
 
+def auto_crops(name: str, bbox: BBox):
+    """Area centre plus the midpoints of the longest kept ways of the two most
+    common highway classes, for areas without hand-picked crops."""
+    osm = gpd.read_file(DATA_DIR / name / "osm_drivable.gpkg", layer="ways")
+    # Clip first: a long way's midpoint can lie outside the area.
+    osm = osm.assign(geometry=osm.intersection(shapely.box(*bbox.as_tuple()).buffer(-100, join_style="mitre")))
+    osm = osm[~osm.is_empty]
+    crops = [("centre", (bbox.xmin + bbox.xmax) / 2, (bbox.ymin + bbox.ymax) / 2)]
+    for cls in osm["highway"].value_counts().index[:2]:
+        w = osm[osm["highway"] == cls]
+        g = w.geometry[w.length.idxmax()]
+        g = max(getattr(g, "geoms", [g]), key=lambda x: x.length)  # clipping can split a way
+        p = g.interpolate(0.5, normalized=True)
+        crops.append((f"longest_{cls}", p.x, p.y))
+    return crops
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     g = ap.add_mutually_exclusive_group(required=True)
@@ -262,7 +280,7 @@ def main(argv=None):
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
     if args.area:
         a = AREAS[args.area]
-        run(a.name, a.bbox, a.qa_crops)
+        run(a.name, a.bbox, a.qa_crops or auto_crops(a.name, a.bbox))
     else:
         bb = args.bbox
         cx, cy = (bb.xmin + bb.xmax) / 2, (bb.ymin + bb.ymax) / 2

@@ -82,6 +82,108 @@ AREAS = {
                 ("village_residential", 127173, 446585),
             ),
         ),
+        Area(
+            name="amsterdam_centrum",
+            bbox=BBox(120400, 486300, 122400, 488300),
+            area_type="city",
+            description="City centre (BAG woonplaats: Amsterdam).",
+        ),
+        Area(
+            name="rotterdam_centrum",
+            bbox=BBox(91600, 436300, 93600, 438300),
+            area_type="city",
+            description="City centre (BAG woonplaats: Rotterdam).",
+        ),
+        Area(
+            name="den_haag_centrum",
+            bbox=BBox(80300, 454000, 82300, 456000),
+            area_type="city",
+            description="City centre (BAG woonplaats: 's-Gravenhage).",
+        ),
+        Area(
+            name="groningen_centrum",
+            bbox=BBox(232900, 581000, 234900, 583000),
+            area_type="city",
+            description="City centre (BAG woonplaats: Groningen).",
+        ),
+        Area(
+            name="maastricht_centrum",
+            bbox=BBox(175400, 317000, 177400, 319000),
+            area_type="city",
+            description="City centre (BAG woonplaats: Maastricht).",
+        ),
+        Area(
+            name="eindhoven_centrum",
+            bbox=BBox(160300, 382300, 162300, 384300),
+            area_type="city",
+            description="City centre (BAG woonplaats: Eindhoven).",
+        ),
+        Area(
+            name="almere_buiten",
+            bbox=BBox(145700, 488400, 147700, 490400),
+            area_type="suburb",
+            description="Residential suburb (BAG woonplaats: Almere).",
+        ),
+        Area(
+            name="zoetermeer",
+            bbox=BBox(92500, 451500, 94500, 453500),
+            area_type="suburb",
+            description="Residential suburb (BAG woonplaats: Zoetermeer).",
+        ),
+        Area(
+            name="amersfoort_vathorst",
+            bbox=BBox(156900, 466400, 158900, 468400),
+            area_type="suburb",
+            description="Residential suburb (BAG woonplaats: Amersfoort).",
+        ),
+        Area(
+            name="apeldoorn_zuid",
+            bbox=BBox(193200, 466000, 195200, 468000),
+            area_type="suburb",
+            description="Residential suburb (BAG woonplaats: Apeldoorn).",
+        ),
+        Area(
+            name="breda_haagse_beemden",
+            bbox=BBox(108800, 402400, 110800, 404400),
+            area_type="suburb",
+            description="Residential suburb (BAG woonplaats: Breda).",
+        ),
+        Area(
+            name="zwolle_stadshagen",
+            bbox=BBox(199700, 503900, 201700, 505900),
+            area_type="suburb",
+            description="Residential suburb (BAG woonplaats: Zwolle).",
+        ),
+        Area(
+            name="wommels",
+            bbox=BBox(167600, 568300, 169600, 570300),
+            area_type="rural",
+            description="Rural: village and countryside (BAG woonplaats: Wommels).",
+        ),
+        Area(
+            name="kapelle",
+            bbox=BBox(54100, 386800, 56100, 388800),
+            area_type="rural",
+            description="Rural: village and countryside (BAG woonplaats: Kapelle).",
+        ),
+        Area(
+            name="westerbork",
+            bbox=BBox(236400, 540000, 238400, 542000),
+            area_type="rural",
+            description="Rural: village and countryside (BAG woonplaats: Westerbork).",
+        ),
+        Area(
+            name="gulpen",
+            bbox=BBox(189400, 312500, 191400, 314500),
+            area_type="rural",
+            description="Rural: village and countryside (BAG woonplaats: Gulpen).",
+        ),
+        Area(
+            name="aalten_buitengebied",
+            bbox=BBox(237400, 440500, 239400, 442500),
+            area_type="rural",
+            description="Rural: village and countryside (BAG woonplaats: Aalten).",
+        ),
     ]
 }
 

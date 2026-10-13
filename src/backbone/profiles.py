@@ -12,8 +12,10 @@ Surface classes:
 - CARRIAGEWAY: BGT drivable surface, except `inrit`.
 - INRIT: driveway entrances. Drivable, but they lie beyond the kerb, so they
   stop width profiles (decided 2026-10-12).
-- KERB_EXT: `parkeervlak` and non-drivable `fietspad`; kerb-to-kerb width
-  continues through them.
+- PARKING (`parkeervlak`) and CYCLE (non-drivable `fietspad`): kerb-to-kerb
+  width continues through them, but not through a run deeper than
+  KERB_EXT_MAX_DEPTH_M along the profile (perpendicular or angled parking
+  bays, wide separate paths; decided 2026-10-12).
 - OTHER: everything else, including no polygon.
 """
 
@@ -26,12 +28,26 @@ import shapely
 
 from backbone import config
 
-OTHER, KERB_EXT, INRIT, CARRIAGEWAY = 0, 1, 2, 3
-CLASS_NAMES = {OTHER: "other", KERB_EXT: "kerb_ext", INRIT: "inrit", CARRIAGEWAY: "carriageway"}
-# Width definitions: classes a profile may walk through, starting on carriageway.
+# Higher value wins where polygons overlap.
+OTHER, PARKING, CYCLE, INRIT, CARRIAGEWAY = 0, 1, 2, 3, 4
+CLASS_NAMES = {OTHER: "other", PARKING: "parking", CYCLE: "cycle", INRIT: "inrit", CARRIAGEWAY: "carriageway"}
+
+
+@dataclass(frozen=True)
+class Definition:
+    """Classes a profile may walk through (starting on carriageway), and the
+    maximum depth of a single run of a class (no entry = unlimited)."""
+
+    allowed: frozenset
+    max_depth: tuple = ()  # ((cls, metres), ...)
+
+
 DEFINITIONS = {
-    "carriageway": frozenset({CARRIAGEWAY}),
-    "kerb": frozenset({CARRIAGEWAY, KERB_EXT}),
+    "carriageway": Definition(frozenset({CARRIAGEWAY})),
+    "kerb": Definition(
+        frozenset({CARRIAGEWAY, PARKING, CYCLE}),
+        ((PARKING, config.KERB_EXT_MAX_DEPTH_M), (CYCLE, config.KERB_EXT_MAX_DEPTH_M)),
+    ),
 }
 
 
@@ -39,7 +55,8 @@ def build_surface(area_dir) -> gpd.GeoDataFrame:
     """BGT polygons with a profile class and level (relatieve_hoogteligging)."""
     wd = gpd.read_file(area_dir / "bgt_wegdeel.gpkg")
     cls = np.full(len(wd), OTHER)
-    cls[wd["functie"].isin(["parkeervlak", "fietspad"]).to_numpy()] = KERB_EXT
+    cls[(wd["functie"] == "parkeervlak").to_numpy()] = PARKING
+    cls[(wd["functie"] == "fietspad").to_numpy()] = CYCLE
     cls[wd["drivable"].to_numpy()] = CARRIAGEWAY
     cls[(wd["functie"] == "inrit").to_numpy()] = INRIT
     wd = gpd.GeoDataFrame({"cls": cls, "level": wd["relatieve_hoogteligging"]}, geometry=wd.geometry)
@@ -160,16 +177,23 @@ def raster_runs(profiles: Profiles, labels: np.ndarray, transform, step: float) 
     return out
 
 
-def measure(runs: list[tuple], allowed: frozenset, search: float, gap_tol: float,
+def measure(runs: list[tuple], definition: Definition, search: float, gap_tol: float,
             stop: tuple[float, float] = (-np.inf, np.inf)) -> dict:  # fmt: skip
     """Left and right width of one profile under one definition.
 
     Starts on the CARRIAGEWAY run at t = 0, or the nearest one within `search` m
     (offset > 0 then; one side can be negative if the line is off the road).
-    Walks outward through `allowed` classes and stops at the first other class
-    (runs shorter than `gap_tol` are skipped, for polygon slivers) or at `stop`
-    (the segment's cell). Returns NaN widths if no carriageway is found.
+    Walks outward through the definition's classes and stops at the first
+    other class or at a run deeper than its class's max depth (runs shorter
+    than `gap_tol` are skipped, for polygon slivers), or at `stop` (the
+    segment's cell). Returns NaN widths if no carriageway is found.
     """
+    allowed = definition.allowed
+    max_depth = dict(definition.max_depth)
+
+    def ok(run):
+        return run[2] in allowed and run[1] - run[0] <= max_depth.get(run[2], np.inf)
+
     nan = {"left": np.nan, "right": np.nan, "offset": np.nan, "cell_stop": False}
     cw = [i for i, r in enumerate(runs) if r[2] == CARRIAGEWAY and r[1] - r[0] > gap_tol]
     if not cw:
@@ -184,12 +208,12 @@ def measure(runs: list[tuple], allowed: frozenset, search: float, gap_tol: float
         j = i
         while 0 <= j + direction < len(runs):
             nxt = runs[j + direction]
-            if nxt[2] in allowed or nxt[1] - nxt[0] <= gap_tol:
+            if ok(nxt) or nxt[1] - nxt[0] <= gap_tol:
                 j += direction
             else:
                 break
         # Trailing slivers do not extend the edge.
-        while j != i and runs[j][2] not in allowed:
+        while j != i and not ok(runs[j]):
             j -= direction
         return j
 
