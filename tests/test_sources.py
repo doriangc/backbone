@@ -192,6 +192,9 @@ def test_mark_service_paved():
         (4, "service", None, [(65, -5), (65, 15)]),  # polygon 3 is not paved
     )
     assert mark_service_paved(terrain, ways).tolist() == [True, False, False, False]
+    # A busway counts too (Den Haag's shared tram/bus lanes).
+    ways = _ways((5, "busway", None, [(25, -5), (25, 15)]))
+    assert mark_service_paved(terrain, ways).tolist() == [False, True, False, False]
 
 
 def test_mark_fietspad_under_way():

@@ -11,7 +11,7 @@
         "dy_m": 0.16,
         "pixel_m": 0.16,
         "peak_over_zero": 1.0217,
-        "edge_pixels": 355333,
+        "edge_pixels": 355538,
         "window": [
           80300.0,
           454000.0,
@@ -50,7 +50,7 @@
         "dy_m": 0.16,
         "pixel_m": 0.16,
         "peak_over_zero": 1.0017,
-        "edge_pixels": 332514,
+        "edge_pixels": 333131,
         "window": [
           81800.0,
           454000.0,
@@ -63,7 +63,7 @@
         "dy_m": 0.16,
         "pixel_m": 0.16,
         "peak_over_zero": 1.026,
-        "edge_pixels": 323564,
+        "edge_pixels": 323736,
         "window": [
           80300.0,
           454500.0,
@@ -88,8 +88,8 @@
         "dx_m": 0.0,
         "dy_m": 1.28,
         "pixel_m": 0.16,
-        "peak_over_zero": 1.0395,
-        "edge_pixels": 263995,
+        "peak_over_zero": 1.0373,
+        "edge_pixels": 265204,
         "window": [
           81300.0,
           454500.0,
@@ -102,7 +102,7 @@
         "dy_m": 0.16,
         "pixel_m": 0.16,
         "peak_over_zero": 1.008,
-        "edge_pixels": 343138,
+        "edge_pixels": 346820,
         "window": [
           81800.0,
           454500.0,
@@ -141,7 +141,7 @@
         "dy_m": -0.16,
         "pixel_m": 0.16,
         "peak_over_zero": 1.0052,
-        "edge_pixels": 205813,
+        "edge_pixels": 206108,
         "window": [
           81300.0,
           455000.0,
@@ -153,8 +153,8 @@
         "dx_m": 0.0,
         "dy_m": -0.16,
         "pixel_m": 0.16,
-        "peak_over_zero": 1.0071,
-        "edge_pixels": 285251,
+        "peak_over_zero": 1.0072,
+        "edge_pixels": 289292,
         "window": [
           81800.0,
           455000.0,
@@ -166,8 +166,8 @@
         "dx_m": 0.16,
         "dy_m": 0.0,
         "pixel_m": 0.16,
-        "peak_over_zero": 1.0089,
-        "edge_pixels": 246522,
+        "peak_over_zero": 1.0091,
+        "edge_pixels": 247344,
         "window": [
           80300.0,
           455500.0,
@@ -179,8 +179,8 @@
         "dx_m": 0.16,
         "dy_m": 0.0,
         "pixel_m": 0.16,
-        "peak_over_zero": 1.0084,
-        "edge_pixels": 235429,
+        "peak_over_zero": 1.0083,
+        "edge_pixels": 236887,
         "window": [
           80800.0,
           455500.0,
@@ -228,7 +228,7 @@
         "dy_m": 0.5,
         "pixel_m": 0.25,
         "peak_over_zero": 1.0584,
-        "edge_pixels": 225901,
+        "edge_pixels": 226031,
         "window": [
           80300.0,
           454000.0,
@@ -266,8 +266,8 @@
         "dx_m": -0.25,
         "dy_m": 0.25,
         "pixel_m": 0.25,
-        "peak_over_zero": 1.0302,
-        "edge_pixels": 211300,
+        "peak_over_zero": 1.0301,
+        "edge_pixels": 211688,
         "window": [
           81800.0,
           454000.0,
@@ -279,8 +279,8 @@
         "dx_m": 0.25,
         "dy_m": 0.5,
         "pixel_m": 0.25,
-        "peak_over_zero": 1.04,
-        "edge_pixels": 205897,
+        "peak_over_zero": 1.0399,
+        "edge_pixels": 206004,
         "window": [
           80300.0,
           454500.0,
@@ -305,8 +305,8 @@
         "dx_m": -0.5,
         "dy_m": 0.5,
         "pixel_m": 0.25,
-        "peak_over_zero": 1.0255,
-        "edge_pixels": 167891,
+        "peak_over_zero": 1.0252,
+        "edge_pixels": 168649,
         "window": [
           81300.0,
           454500.0,
@@ -318,8 +318,8 @@
         "dx_m": -0.25,
         "dy_m": 0.25,
         "pixel_m": 0.25,
-        "peak_over_zero": 1.0358,
-        "edge_pixels": 217989,
+        "peak_over_zero": 1.0357,
+        "edge_pixels": 220317,
         "window": [
           81800.0,
           454500.0,
@@ -357,8 +357,8 @@
         "dx_m": 0.75,
         "dy_m": 1.25,
         "pixel_m": 0.25,
-        "peak_over_zero": 1.053,
-        "edge_pixels": 130841,
+        "peak_over_zero": 1.0527,
+        "edge_pixels": 131027,
         "window": [
           81300.0,
           455000.0,
@@ -367,11 +367,11 @@
         ]
       },
       {
-        "dx_m": 0.0,
-        "dy_m": 0.25,
+        "dx_m": 0.25,
+        "dy_m": 0.0,
         "pixel_m": 0.25,
-        "peak_over_zero": 1.0041,
-        "edge_pixels": 181501,
+        "peak_over_zero": 1.0036,
+        "edge_pixels": 184063,
         "window": [
           81800.0,
           455000.0,
@@ -383,8 +383,8 @@
         "dx_m": 0.0,
         "dy_m": -0.25,
         "pixel_m": 0.25,
-        "peak_over_zero": 1.0139,
-        "edge_pixels": 156848,
+        "peak_over_zero": 1.0137,
+        "edge_pixels": 157372,
         "window": [
           80300.0,
           455500.0,
@@ -396,8 +396,8 @@
         "dx_m": -0.25,
         "dy_m": -0.25,
         "pixel_m": 0.25,
-        "peak_over_zero": 1.0197,
-        "edge_pixels": 149787,
+        "peak_over_zero": 1.0196,
+        "edge_pixels": 150719,
         "window": [
           80800.0,
           455500.0,

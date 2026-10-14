@@ -24,7 +24,7 @@
         "dy_m": 0.0,
         "pixel_m": 0.16,
         "peak_over_zero": 1.0,
-        "edge_pixels": 162161,
+        "edge_pixels": 162595,
         "window": [
           146200.0,
           488400.0,
@@ -114,8 +114,8 @@
         "dx_m": 0.0,
         "dy_m": 0.16,
         "pixel_m": 0.16,
-        "peak_over_zero": 1.0162,
-        "edge_pixels": 270925,
+        "peak_over_zero": 1.016,
+        "edge_pixels": 271330,
         "window": [
           145700.0,
           489400.0,
@@ -241,7 +241,7 @@
         "dy_m": 0.0,
         "pixel_m": 0.25,
         "peak_over_zero": 1.0,
-        "edge_pixels": 103148,
+        "edge_pixels": 103426,
         "window": [
           146200.0,
           488400.0,
@@ -332,7 +332,7 @@
         "dy_m": 0.0,
         "pixel_m": 0.25,
         "peak_over_zero": 1.0,
-        "edge_pixels": 172476,
+        "edge_pixels": 172732,
         "window": [
           145700.0,
           489400.0,

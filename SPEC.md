@@ -20,7 +20,7 @@ The project measures the real-world width of OpenStreetMap (OSM) road segments f
   - service roads in private yards: more than 50% of their length on BGT onbegroeidterreindeel `erf`.
 - **Drivable surface in BGT** (attribute names verified against the BGT catalogue on 2026-10-12):
   - `wegdeel` with `functie` in `rijbaan autosnelweg`, `rijbaan autoweg`, `rijbaan regionale weg`, `rijbaan lokale weg`, `OV-baan` (bus and tram lanes are included), `overweg`, `inrit`, `woonerf`;
-  - plus `onbegroeidterreindeel` with `fysiek_voorkomen` `gesloten verharding` or `open verharding`, but only where a kept OSM service way runs through it;
+  - plus `onbegroeidterreindeel` with `fysiek_voorkomen` `gesloten verharding` or `open verharding`, but only where a kept OSM service way or busway runs through it (busways added 2026-10-14);
   - plus `wegdeel` `fietspad` where a kept drivable OSM way runs along it (at least half the polygon's length), e.g. bicycle streets that BGT maps as cycle path; a road that only crosses a cycle path does not count (decided 2026-10-12);
   - only the current version of each BGT object (the PDOK API also returns history).
 - **Width definitions.** Both are measured from BGT. **Carriageway width is the product; kerb-to-kerb is a secondary output** (decided 2026-10-12):

@@ -166,12 +166,13 @@ def fetch_bgt_terrain(bbox: BBox, out_dir: Path, s: requests.Session):
 
 
 def mark_service_paved(terrain: gpd.GeoDataFrame, ways: gpd.GeoDataFrame) -> pd.Series:
-    """True for paved terrain polygons that a kept OSM service way runs over
+    """True for paved terrain polygons that a kept OSM service way or busway
+    (config.PAVED_TERRAIN_HIGHWAYS) runs over
     for at least SERVICE_PAVED_MIN_OVERLAP_M. Overlap is measured inside the
     polygon shrunk by SERVICE_PAVED_EDGE_M, so a way running along the polygon's
     edge (e.g. on the adjacent wegdeel) does not count."""
     paved = terrain[terrain["paved"]]
-    svc = ways[ways["highway"] == "service"]
+    svc = ways[ways["highway"].isin(config.PAVED_TERRAIN_HIGHWAYS)]
     out = pd.Series(False, index=terrain.index)
     if paved.empty or svc.empty:
         return out

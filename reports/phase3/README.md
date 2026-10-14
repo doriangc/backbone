@@ -41,37 +41,38 @@ Per-profile data: `data/<area>/widths.gpkg`, layers `profiles` and `segments`.
 
 ## Coverage
 
-19,972 segments (1,238 km) have profiles inside the scoring box; **14,188
-(1,149 km) are scored**. Not scored: 3,690 junction-only segments (38 km,
-median 8 m long) and 2,094 with fewer than 3 usable profiles (51 km).
+19,972 segments (1,238 km) have profiles inside the scoring box; **14,204
+(1,150 km) are scored**. Not scored: 3,690 junction-only segments (38 km,
+median 8 m long) and 2,078 with fewer than 3 usable profiles (50 km).
+Numbers include the busway paved-terrain rule of 2026-10-14.
 
 | Flag | Segments | km | Meaning |
 |---|---|---|---|
-| spread | 3,456 | 264.3 | p90 - p10 of carriageway width > 1.5 m |
-| cell_limited | 1,451 | 68.4 | > 50% of profiles stopped by a neighbouring centreline |
-| offset | 364 | 25.3 | OSM line mostly off the carriageway |
+| spread | 3,466 | 265.2 | p90 - p10 of carriageway width > 1.5 m |
+| cell_limited | 1,461 | 68.6 | > 50% of profiles stopped by a neighbouring centreline |
+| offset | 349 | 24.2 | OSM line mostly off the carriageway |
 
 Only 2.0% of usable profiles start off the carriageway, but OSM lines are
 rarely centred: the median |left - right| is 0.61 m.
 
-## True widths and baseline errors (14,188 scored segments)
+## True widths and baseline errors (14,204 scored segments)
 
-Median true width: carriageway 4.99 m, kerb-to-kerb 5.61 m. 18% of profile
+Median true width: carriageway 4.99 m, kerb-to-kerb 5.62 m. 18% of profile
 sides extend beyond the carriageway (median 1.9 m, a parallel parking lane or
 cycle path). After the 3 m cap, 0.7% extend more than 3 m, through two shallow
 runs in a row.
 
 | Baseline (vs carriageway) | MAE (m) | Within 0.5 m | Bias (m) | MAE city / suburb / rural |
 |---|---|---|---|---|
-| B0: tags, else class defaults | 1.40 | 29% | -0.04 | 1.41 / 1.39 / 1.41 |
-| B1: class median from other areas | 1.37 | 28% | -0.01 | 1.58 / 1.17 / 1.12 |
-| **B2: tags, else B1** | **1.22** | **33%** | -0.11 | 1.37 / 1.07 / 1.07 |
+| B0: tags, else class defaults | 1.40 | 29% | -0.05 | 1.40 / 1.39 / 1.41 |
+| B1: class median from other areas | 1.37 | 29% | -0.01 | 1.58 / 1.17 / 1.12 |
+| **B2: tags, else B1** | **1.22** | **33%** | -0.11 | 1.36 / 1.07 / 1.07 |
 
-B1 helps where defaults are poor: residential (MAE 1.16 -> 1.03) and service
+B1 helps where defaults are poor: residential (MAE 1.16 -> 1.04) and service
 (3.12 -> 2.22). It hurts where `lanes` tags carry information: secondary
-1.30 -> 1.91, primary 1.36 -> 2.25. B2 keeps both, and it is the bar the
+1.30 -> 1.90, primary 1.36 -> 2.25. B2 keeps both, and it is the bar the
 imagery method has to beat in Phase 5. The hardest classes for B2 are
-motorway (3.42 m; hard shoulders), service (2.20 m) and busway (1.85 m).
+motorway (3.42 m; hard shoulders), service (2.20 m) and busway (1.78 m).
 
 B1 is the leave-one-area-out per-class median, so with 20 areas it is no
 longer tuned on 2 neighbours. Against kerb-to-kerb, all baselines are worse
@@ -100,9 +101,9 @@ Medians absorb most of these.
    appear to tag carriageway width, contrary to the OSM wiki definition.
 2. **Resolved: perpendicular parking.** Kerb-to-kerb now stops at parking or
    cycle-path runs deeper than 3 m (`profiles.DEFINITIONS["kerb"]`). Median
-   kerb-to-kerb fell from 5.80 to 5.61 m. Unit test
+   kerb-to-kerb fell from 5.80 to 5.62 m. Unit test
    `test_kerb_stops_at_deep_parking_bays`.
-3. **Resolved: spread-flagged segments** (3,456, 264 km) keep their
+3. **Resolved: spread-flagged segments** (3,466, 265 km) keep their
    distribution and use the median.
 4. **Approved parameters:** spacing 2 m, offset search 5 m, junction
    exclusion = half the widest other road's tag width + 3 m (2 m at

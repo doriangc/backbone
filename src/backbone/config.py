@@ -7,6 +7,8 @@ Endpoints, attribute names and licenses were verified on 2026-10-12 against:
 - Luchtfoto NGR metadata (license): https://www.nationaalgeoregister.nl/geonetwork/srv/api/records/00abe9ef-45f6-46bb-a227-2f653ae5fc6e
 """
 
+from pathlib import Path
+
 RD_EPSG = 28992
 WGS84_EPSG = 4326
 
@@ -43,6 +45,10 @@ BGT_PAVED_TERRAIN = frozenset({"gesloten verharding", "open verharding"})
 # A service way is dropped when more than this share of its length lies on
 # `erf`: private yards whose road surface BGT does not map (decision 2026-10-12).
 OSM_SERVICE_MAX_ERF_SHARE = 0.5
+# OSM classes whose paved terrain counts as drivable. Busways were added
+# 2026-10-14: Den Haag's shared tram/bus lanes are paved terrain, not OV-baan.
+# (The column keeps the name `service_paved`.)
+PAVED_TERRAIN_HIGHWAYS = frozenset({"service", "busway"})
 # Minimum length (m) of a service way inside a paved terrain polygon for that
 # polygon to count as drivable; avoids ways that only clip a corner or edge.
 SERVICE_PAVED_MIN_OVERLAP_M = 1.0
@@ -124,3 +130,31 @@ MINOR_SERVICE = frozenset({"driveway", "alley", "drive-through", "emergency_acce
 KERB_EXT_MAX_DEPTH_M = 3.0  # deeper parking / cycle-path runs stop kerb-to-kerb
 SPREAD_FLAG_M = 1.5  # p90 - p10 of total carriageway width
 MIN_USABLE_PROFILES = 3
+
+# --- Phase 4 surface-class model -----------------------------------------------
+# Labels and model input are on a 25 cm grid; the 8 cm imagery is averaged
+# down to it, so image and labels come from the same flight. The PDOK 25 cm
+# product (a different flight) is only used as a separate test.
+ML_RES_M = 0.25
+CHIP_PX = 256  # 64 m at 25 cm
+# Model classes (index = value in the label raster). Where BGT polygons overlap
+# or several levels stack, see surface_data.rasterize_labels.
+SURFACE_CLASSES = ("background", "carriageway", "inrit", "parking", "cycle", "footpath", "other_paved")
+# BGT -> class, recorded exactly (SPEC Phase 4 step 1):
+# - carriageway: wegdeel `drivable` (BGT_DRIVABLE_FUNCTIES, plus `fietspad`
+#   under a drivable way) except `inrit`, plus onbegroeidterreindeel
+#   `service_paved` (paved terrain under a service way or busway);
+# - inrit: wegdeel `inrit` (its own class so width fitting can stop at it);
+# - parking: wegdeel `parkeervlak`;
+# - cycle: wegdeel `fietspad` not counted as drivable;
+# - footpath: wegdeel in WEGDEEL_FOOTPATH;
+# - other_paved: every other wegdeel `functie` (e.g. `spoorbaan`, `ruiterpad`),
+#   and onbegroeidterreindeel in BGT_PAVED_TERRAIN not counted as carriageway;
+# - background: everything else (buildings, green, water, `erf`, unpaved).
+WEGDEEL_FOOTPATH = frozenset({"voetpad", "voetpad op trap", "voetgangersgebied"})
+# Spatial split by area (drawn 2026-10-14 with numpy default_rng(0) over the
+# 17 non-pilot areas, stratified: 2 city + 1 suburb + 1 rural to test, one of
+# each to validation). The three pilots shaped the label rules, so they train.
+TEST_AREAS = ("groningen_centrum", "eindhoven_centrum", "zoetermeer", "aalten_buitengebied")
+VAL_AREAS = ("rotterdam_centrum", "zwolle_stadshagen", "kapelle")
+EXPERIMENTS_DIR = Path("experiments")

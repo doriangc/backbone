@@ -139,7 +139,9 @@ onbegroeidterreindeel polygons with `fysiek_voorkomen` `gesloten verharding` or
 `bgt_onbegroeidterreindeel.gpkg`, green in the overlays) when a kept OSM service
 way runs at least 1 m through them, measured 0.5 m inside the polygon edge so a
 way along the edge does not count. Elsewhere these classes are plazas and
-schoolyards and are not drivable.
+schoolyards and are not drivable. Since 2026-10-14 the same rule applies under
+busways (`config.PAVED_TERRAIN_HIGHWAYS`): BGT maps Den Haag's shared tram/bus
+lanes as paved terrain rather than `OV-baan` (Phase 2 open issue 5).
 
 **OSM vs BGT:** share of each OSM way's length that lies inside BGT drivable polygons
 (median): residential, secondary, tertiary, unclassified 1.00 (mean 0.92 to 0.96);
