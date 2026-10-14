@@ -16,10 +16,23 @@ dependencies = [
     "affine",
     "scipy",
     "tabulate",
+    "torch",
+    "torchvision",
+    "segmentation-models-pytorch>=0.5.0",
 ]
 
 [dependency-groups]
 dev = ["pytest"]
+
+# CPU-only PyTorch wheels: the default Linux wheels pull ~2.5 GB of CUDA libraries.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+torchvision = { index = "pytorch-cpu" }
 
 [build-system]
 requires = ["hatchling"]

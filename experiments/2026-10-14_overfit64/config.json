@@ -1,0 +1,82 @@
+{
+ "args": {
+  "name": "overfit64",
+  "benchmark": false,
+  "bench_threads": [
+   4,
+   8,
+   12,
+   16
+  ],
+  "encoder": "resnet18",
+  "epochs": 250,
+  "batch": 16,
+  "lr": 0.001,
+  "threads": 12,
+  "workers": 2,
+  "chips_per_epoch": 0,
+  "val_chips": 600,
+  "overfit": 64,
+  "max_minutes": 27.0,
+  "eval_every": 25,
+  "class_weights": true,
+  "seed": 0,
+  "resume_ok": false
+ },
+ "git": {
+  "commit": "9531ecb8cff57bb20722b93b8e98312db7fa9503",
+  "dirty": true
+ },
+ "classes": [
+  "background",
+  "carriageway",
+  "inrit",
+  "parking",
+  "cycle",
+  "footpath",
+  "other_paved"
+ ],
+ "res_m": 0.25,
+ "chip_px": 256,
+ "train_areas": [
+  "utrecht_centrum",
+  "houten",
+  "benschop",
+  "amsterdam_centrum",
+  "den_haag_centrum",
+  "maastricht_centrum",
+  "almere_buiten",
+  "amersfoort_vathorst",
+  "apeldoorn_zuid",
+  "breda_haagse_beemden",
+  "wommels",
+  "westerbork",
+  "gulpen"
+ ],
+ "val_areas": [
+  "rotterdam_centrum",
+  "zwolle_stadshagen",
+  "kapelle"
+ ],
+ "test_areas": [
+  "groningen_centrum",
+  "eindhoven_centrum",
+  "zoetermeer",
+  "aalten_buitengebied"
+ ],
+ "n_train_candidates": 64,
+ "n_val_chips": 64,
+ "steps_per_epoch": 4,
+ "class_weights": [
+  0.143,
+  0.446,
+  2.785,
+  0.872,
+  1.323,
+  0.479,
+  0.951
+ ],
+ "torch": "2.14.1+cpu",
+ "smp": "0.5.0",
+ "started": "2026-10-14T14:43:17"
+}

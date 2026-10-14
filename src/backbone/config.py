@@ -148,10 +148,13 @@ SURFACE_CLASSES = ("background", "carriageway", "inrit", "parking", "cycle", "fo
 # - parking: wegdeel `parkeervlak`;
 # - cycle: wegdeel `fietspad` not counted as drivable;
 # - footpath: wegdeel in WEGDEEL_FOOTPATH;
-# - other_paved: every other wegdeel `functie` (e.g. `spoorbaan`, `ruiterpad`),
-#   and onbegroeidterreindeel in BGT_PAVED_TERRAIN not counted as carriageway;
-# - background: everything else (buildings, green, water, `erf`, unpaved).
+# - other_paved: every other wegdeel `functie` (e.g. `ruiterpad`), and
+#   onbegroeidterreindeel in BGT_PAVED_TERRAIN not counted as carriageway;
+# - background: wegdeel in WEGDEEL_BACKGROUND, and everything else (buildings,
+#   green, water, `erf`, unpaved).
 WEGDEEL_FOOTPATH = frozenset({"voetpad", "voetpad op trap", "voetgangersgebied"})
+# `spoorbaan` is the railway track bed (ballast), not paved (decided 2026-10-14).
+WEGDEEL_BACKGROUND = frozenset({"spoorbaan"})
 # Spatial split by area (drawn 2026-10-14 with numpy default_rng(0) over the
 # 17 non-pilot areas, stratified: 2 city + 1 suburb + 1 rural to test, one of
 # each to validation). The three pilots shaped the label rules, so they train.
