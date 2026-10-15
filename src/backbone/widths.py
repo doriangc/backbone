@@ -63,30 +63,35 @@ def segment_levels(segs: gpd.GeoDataFrame, surface: gpd.GeoDataFrame) -> pd.Seri
     return level
 
 
-def run_area(name: str) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
-    area_dir = DATA_DIR / name
+def area_profiles(name: str):
+    """Segments, cells, profiles and per-profile flags of an area, shared by
+    Phase 3 (BGT truth) and Phase 5 (model), so both measure the same profiles.
+
+    Returns segs, cells, prof, inside (in the eval box), junction (inside a
+    junction exclusion zone) and stops ((n, 2) cell interval along each profile).
+    """
     segs = load_segments(name)
     cells = segment_cells(name, segs)
-    surface = build_surface(area_dir)
-    levels = segment_levels(segs, surface)
     jd = junction_distances(segs)
-
     prof = make_profiles(segs.geometry, config.PROFILE_SPACING_M, config.PROFILE_HALF_LENGTH_M)
     inside = shapely.contains_xy(eval_box(name), prof.point[:, 0], prof.point[:, 1])
     seg_len = segs.geometry.length.loc[prof.seg].to_numpy()
     junction = (prof.s < jd["start"].loc[prof.seg].to_numpy()) | (
         prof.s > seg_len - jd["end"].loc[prof.seg].to_numpy()
     )
-    runs = vector_runs(prof, surface, levels.loc[prof.seg].to_numpy())
     stops = cell_interval(prof, cells)
+    return segs, cells, prof, inside, junction, stops
 
+
+def profile_rows(prof, inside, junction, stops, runs, gap_tol: float) -> gpd.GeoDataFrame:
+    """Measure both definitions on every profile in the eval box."""
     rows = []
     for k in range(len(prof.s)):
         if not inside[k]:
             continue
-        row = {"seg": prof.seg[k], "s": prof.s[k], "junction": bool(junction[k])}
+        row = {"k": k, "seg": prof.seg[k], "s": prof.s[k], "junction": bool(junction[k])}
         for d, definition in DEFINITIONS.items():
-            m = measure(runs[k], definition, config.OFFSET_SEARCH_M, config.GAP_TOL_M, stop=tuple(stops[k]))
+            m = measure(runs[k], definition, config.OFFSET_SEARCH_M, gap_tol, stop=tuple(stops[k]))
             row[f"{d}_left"], row[f"{d}_right"] = m["left"], m["right"]
             row[f"{d}_cell_stop"] = m["cell_stop"]
             if d == "carriageway":
@@ -99,6 +104,16 @@ def run_area(name: str) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
     )
     for d in DEFINITIONS:
         p[f"{d}_total"] = p[f"{d}_left"] + p[f"{d}_right"]
+    return p
+
+
+def run_area(name: str) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
+    segs, cells, prof, inside, junction, stops = area_profiles(name)
+    area_dir = DATA_DIR / name
+    surface = build_surface(area_dir)
+    levels = segment_levels(segs, surface)
+    runs = vector_runs(prof, surface, levels.loc[prof.seg].to_numpy())
+    p = profile_rows(prof, inside, junction, stops, runs, config.GAP_TOL_M).drop(columns="k")
     p["segment_id"] = segs["segment_id"].loc[p["seg"]].to_numpy()
 
     summ = summarize_segments(p, segs, name)
